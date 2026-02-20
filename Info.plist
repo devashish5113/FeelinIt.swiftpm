@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSCameraUsageDescription</key>
+    <string>FeelinIt uses your front camera to detect hand gestures for emotion regulation.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>FeelinIt uses your microphone to detect breathing patterns for emotion regulation.</string>
+</dict>
+</plist>
