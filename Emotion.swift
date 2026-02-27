@@ -7,6 +7,8 @@ enum Emotion: String, CaseIterable, Identifiable {
     case anxiety = "Anxiety"
     case sadness = "Sadness"
     case love    = "Love"
+    case happy   = "Happy"
+    case angry   = "Angry"
 
     var id: String { rawValue }
 
@@ -16,6 +18,8 @@ enum Emotion: String, CaseIterable, Identifiable {
         case .anxiety: return "⚡️"
         case .sadness: return "🌧"
         case .love:    return "💗"
+        case .happy:   return "✨"
+        case .angry:   return "🔥"
         }
     }
 
@@ -25,6 +29,8 @@ enum Emotion: String, CaseIterable, Identifiable {
         case .anxiety: return "Turbulent & Alert"
         case .sadness: return "Heavy & Withdrawn"
         case .love:    return "Warm & Connected"
+        case .happy:   return "Bright & Energised"
+        case .angry:   return "Intense & Reactive"
         }
     }
 
@@ -38,6 +44,10 @@ enum Emotion: String, CaseIterable, Identifiable {
             return "Reduced synaptic activity dims your neural network — withdrawal conserves energy."
         case .love:
             return "Dopamine and oxytocin flood reward circuits — your neurons are lighting up in warm cascades."
+        case .happy:
+            return "Dopamine and serotonin synchronize reward circuits — your brain is firing in bright, uplifting bursts."
+        case .angry:
+            return "The amygdala hijacks prefrontal control — rapid, forceful firing primes your body for action."
         }
     }
 
@@ -47,6 +57,8 @@ enum Emotion: String, CaseIterable, Identifiable {
         case .anxiety: return Color(red: 0.95, green: 0.28, blue: 0.08)
         case .sadness: return Color(red: 0.38, green: 0.40, blue: 0.58)
         case .love:    return Color(red: 0.95, green: 0.38, blue: 0.65)
+        case .happy:   return Color(red: 0.98, green: 0.78, blue: 0.10) // warm amber-gold
+        case .angry:   return Color(red: 0.88, green: 0.10, blue: 0.18) // deep crimson
         }
     }
 }
@@ -65,7 +77,7 @@ struct EmotionParameters: Sendable {
     var connectionOpacity: Float
     var particleBirthRate: Float
     var rotationDuration: Double // seconds for full Y rotation
-    var glowIntensity: Float    // base emission brightness 0–1 (calm≈0.72, anxiety=1.0, sadness≈0.30, love≈0.90)
+    var glowIntensity: Float    // base emission brightness 0–1
 
     var primaryUIColor: UIColor {
         UIColor(red: CGFloat(priR), green: CGFloat(priG), blue: CGFloat(priB), alpha: 1)
@@ -111,6 +123,32 @@ struct EmotionParameters: Sendable {
                 particleVelocity: 0.55, connectionOpacity: 0.68,
                 particleBirthRate: 35, rotationDuration: 15,
                 glowIntensity: 0.90
+            )
+        case .happy:
+            // Dopamine/serotonin synchronize reward circuits.
+            // Medium-fast synchronized pulses, high connectivity (social brain online),
+            // warm amber primary with golden secondary.
+            // Gamma-like upward-cascading bursts, bright sustained glow.
+            return EmotionParameters(
+                priR: 0.98, priG: 0.78, priB: 0.10,
+                secR: 0.98, secG: 0.55, secB: 0.05,
+                turbulence: 0.14, pulseSpeed: 1.0, connectivity: 0.88,
+                particleVelocity: 0.70, connectionOpacity: 0.72,
+                particleBirthRate: 45, rotationDuration: 13,
+                glowIntensity: 0.88
+            )
+        case .angry:
+            // Amygdala hijack: fast, forceful, rhythmically aggressive bursts.
+            // Higher amplitude than calm, lower chaos than anxiety — directed intensity.
+            // Deep crimson primary, red-orange secondary (adrenaline heat).
+            // Strong connectivity in limbic loop, fast rotation.
+            return EmotionParameters(
+                priR: 0.90, priG: 0.10, priB: 0.15,
+                secR: 0.98, secG: 0.40, secB: 0.05,
+                turbulence: 0.28, pulseSpeed: 0.65, connectivity: 0.60,
+                particleVelocity: 1.80, connectionOpacity: 0.75,
+                particleBirthRate: 60, rotationDuration: 7,
+                glowIntensity: 0.95
             )
         }
     }

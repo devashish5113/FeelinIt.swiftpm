@@ -321,6 +321,116 @@ final class NeuralSceneManager: ObservableObject {
                 .wait(duration: delay), h1, h2, h3, h4
             ]))
             node.runAction(heartbeat, forKey: "pulse")
+
+        case .happy:
+            // ── Dopamine/serotonin synchronized reward bursts ──
+            // Gamma-like (40 Hz analogue) upward-cascading waves: groups fire in
+            // ascending phase order → "reward signal propagating through cortex".
+            // Brighter, faster, more energetic than calm but well-coordinated.
+            let happyDelay = Double(i) * p.pulseSpeed / Double(groupCount) * 0.6
+            let happyAmp   = CGFloat(0.045)
+            let happyWave  = SCNAction.repeatForever(SCNAction.customAction(duration: p.pulseSpeed * 1.2) { nd, t in
+                let tf = Float(t / p.pulseSpeed)
+                // Upward-biased motion — joy literally lifts neural activity
+                let x = sin(tf * 2 * .pi + phase) * Float(happyAmp * 0.6)
+                let y = abs(sin(tf * 2 * .pi + phase)) * Float(happyAmp) - Float(happyAmp * 0.2)
+                let z = cos(tf * 2 * .pi + phase) * Float(happyAmp * 0.3)
+                nd.position = SCNVector3(x, y, z)
+            })
+            let happyWait = SCNAction.wait(duration: happyDelay)
+            node.runAction(.sequence([happyWait, happyWave]), forKey: "motion")
+            node.opacity = 1.0
+
+            // Bouncy upbeat scale — energetic without being erratic
+            let bu1 = SCNAction.scale(to: 1.10, duration: p.pulseSpeed * 0.22)
+            let bu2 = SCNAction.scale(to: 0.97, duration: p.pulseSpeed * 0.14)
+            let bu3 = SCNAction.scale(to: 1.04, duration: p.pulseSpeed * 0.10)
+            let bu4 = SCNAction.scale(to: 1.00, duration: p.pulseSpeed * 0.54)
+            [bu1,bu2,bu3,bu4].forEach { $0.timingMode = .easeInEaseOut }
+            node.runAction(.repeatForever(.sequence([
+                .wait(duration: happyDelay), bu1, bu2, bu3, bu4
+            ])), forKey: "pulse")
+
+            // ── Glow: bright cascading amber warmth ──
+            // Rides 0.70→1.05 with upward phase, so brightness peaks match the upward motion.
+            // Groups cascade so the whole neuron "lights up" progressively.
+            let priCH  = p.primaryUIColor
+            let secCH  = p.secondaryUIColor
+            let hLo = Float(0.70); let hHi = Float(1.05)
+            let happyGlow = SCNAction.repeatForever(SCNAction.customAction(duration: p.pulseSpeed) { [weak self] nd, t in
+                guard let self else { return }
+                let tf = Float(t / p.pulseSpeed)
+                let bright     = hLo + (hHi - hLo) * (0.5 + 0.5 * sin(tf * 2 * .pi + phase))
+                let hueBlend   = CGFloat(max(0, sin(tf * 2 * .pi + phase)))   // 0→1 drives warm→amber
+                var pr: CGFloat = 0, pg: CGFloat = 0, pb: CGFloat = 0, pa: CGFloat = 0
+                var sr: CGFloat = 0, sg: CGFloat = 0, sb: CGFloat = 0
+                priCH.getRed(&pr, green: &pg, blue: &pb, alpha: &pa)
+                secCH.getRed(&sr, green: &sg, blue: &sb, alpha: &pa)
+                let blended = UIColor(red: pr + (sr - pr) * hueBlend,
+                                     green: pg + (sg - pg) * hueBlend,
+                                     blue: pb + (sb - pb) * hueBlend, alpha: 1)
+                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: blended, intensity: bright)
+            })
+            node.runAction(.sequence([.wait(duration: happyDelay), .repeatForever(happyGlow)]), forKey: "glow")
+
+        case .angry:
+            // ── Amygdala-driven aggressive rhythmic bursts ──
+            // Unlike anxiety (pure chaos), anger is DIRECTED: regular high-amplitude
+            // strikes with forceful rebounds — the amygdala fires in synchronized
+            // bursts that override prefrontal modulation.
+            let angryFreq = 1.8 + fi * 0.25     // each group slightly different → overlapping attack waves
+            let angryAmp  = CGFloat(0.07 + Double(fi) * 0.008)
+
+            let angryMotion = SCNAction.repeatForever(SCNAction.customAction(duration: 100) { nd, t in
+                let tf = Float(t)
+                // Forceful strike pattern: fast attack, slow decay (like anger flare)
+                let rawX = sin(tf * angryFreq + phase)
+                let rawY = cos(tf * angryFreq * 0.85 + phase)
+                // Sharpen the waveform → more abrupt strikes than sinusoidal
+                let x = (rawX > 0 ? pow(rawX, 0.6) : -pow(-rawX, 0.6)) * Float(angryAmp)
+                let y = (rawY > 0 ? pow(rawY, 0.6) : -pow(-rawY, 0.6)) * Float(angryAmp * 0.7)
+                let z = sin(tf * angryFreq * 1.2 + phase) * Float(angryAmp * 0.4)
+                nd.position = SCNVector3(x, y, z)
+            })
+            node.runAction(angryMotion, forKey: "motion")
+
+            // Aggressive strike pulse — hard in, hard out
+            let aUp = SCNAction.scale(to: 1.0 + CGFloat(0.08 + Double(fi) * 0.01),
+                                      duration: p.pulseSpeed * 0.20)
+            let aDn = SCNAction.scale(to: 1.0, duration: p.pulseSpeed * 0.80)
+            aUp.timingMode = .easeIn; aDn.timingMode = .easeOut
+            node.runAction(.repeatForever(.sequence([aUp, aDn])), forKey: "pulse")
+            node.opacity = 1.0
+
+            // Opacity throbs between full and 0.70 on each strike
+            let aFlashOn  = SCNAction.fadeOpacity(to: 1.00, duration: p.pulseSpeed * 0.18)
+            let aFlashOff = SCNAction.fadeOpacity(to: 0.70, duration: p.pulseSpeed * 0.82)
+            node.runAction(.repeatForever(.sequence([aFlashOn, aFlashOff])), forKey: "flash")
+
+            // ── Glow: crimson flare with red-orange discharge on each strike ──
+            // Peaks at 1.3 (white-hot red tip) then bleeds to orange at 0.65
+            let priCA  = p.primaryUIColor  // deep crimson
+            let secCA  = p.secondaryUIColor  // red-orange
+            let aLo = Float(0.65); let aHi = Float(1.35)  // >1 → overblown red-white
+            let angryGlow = SCNAction.repeatForever(SCNAction.customAction(duration: p.pulseSpeed) { [weak self] nd, t in
+                guard let self else { return }
+                let tf = Float(t / p.pulseSpeed)
+                // Fast-attack waveform mirrors the strike motion
+                let rawSin = 0.5 + 0.5 * sin(tf * 2 * .pi + phase)
+                let sharp  = pow(rawSin, 0.5)   // sharpen peak
+                let bright = aLo + (aHi - aLo) * Float(sharp)
+                // At peak brightness, discharge bleeds toward orange secondary
+                let hueBlend = CGFloat(sharp)
+                var pr: CGFloat = 0, pg: CGFloat = 0, pb: CGFloat = 0, pa: CGFloat = 0
+                var sr: CGFloat = 0, sg: CGFloat = 0, sb: CGFloat = 0
+                priCA.getRed(&pr, green: &pg, blue: &pb, alpha: &pa)
+                secCA.getRed(&sr, green: &sg, blue: &sb, alpha: &pa)
+                let blended = UIColor(red: pr + (sr - pr) * hueBlend * 0.4,
+                                     green: pg + (sg - pg) * hueBlend * 0.4,
+                                     blue: pb + (sb - pb) * hueBlend * 0.2, alpha: 1)
+                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: blended, intensity: bright)
+            })
+            node.runAction(angryGlow, forKey: "glow")
         }
     }
 
