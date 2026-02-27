@@ -30,23 +30,31 @@ final class BreathingManager: ObservableObject {
     nonisolated private func configureAndStart() async {
         guard await requestMicPermission() else { return }
 
-        let engine = AVAudioEngine()
-        let bus: AVAudioNodeBus = 0
-        let fmt = engine.inputNode.outputFormat(forBus: bus)
-
-        // Tap callback fires on an internal audio thread — dispatch result to main actor
-        engine.inputNode.installTap(onBus: bus, bufferSize: 1024, format: fmt) { [weak self] buf, _ in
-            // RMS computed here on audio thread (nonisolated) — only Float crosses to @MainActor
-            let rms = BreathingManager.rms(buf)
-            Task { @MainActor [weak self] in self?.process(rms) }
-        }
-
         do {
+            // ── 1. Activate audio session FIRST so hardware initialises ──
+            // Querying inputNode.outputFormat before session activation returns
+            // 0 Hz, which makes AVAudioEngine crash on installTap.
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .default, options: .mixWithOthers)
-            try session.setActive(true)   // ← potentially blocking; off main thread ✓
-            try engine.start()            // ← potentially blocking; off main thread ✓
-            // Store reference back on main actor
+            try session.setCategory(.record, mode: .measurement, options: .mixWithOthers)
+            try session.setActive(true)
+
+            // ── 2. NOW the format is valid (real sample-rate from hardware) ──
+            let engine = AVAudioEngine()
+            let bus: AVAudioNodeBus = 0
+            let fmt = engine.inputNode.outputFormat(forBus: bus)
+
+            guard fmt.sampleRate > 0 else {
+                print("BreathingManager: invalid input format (sampleRate == 0)")
+                return
+            }
+
+            // ── 3. Install tap and start engine ──────────────────────────
+            engine.inputNode.installTap(onBus: bus, bufferSize: 1024, format: fmt) { [weak self] buf, _ in
+                let rms = BreathingManager.rms(buf)
+                Task { @MainActor [weak self] in self?.process(rms) }
+            }
+            try engine.start()
+
             await MainActor.run { [weak self] in self?.audioEngine = engine }
         } catch {
             print("BreathingManager: \(error)")

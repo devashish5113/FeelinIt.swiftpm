@@ -92,6 +92,26 @@ final class NeuralSceneManager: ObservableObject {
 
     func update(parameters: EmotionParameters) { applyParameters(parameters, animated: true) }
 
+    // MARK: - Glow helpers
+
+    /// Returns the emission UIColor pre-multiplied by an intensity factor (0–1+).
+    /// Values >1 clamp at white, giving the "white-hot" overblown effect for Anxiety.
+    private func glowColor(from base: UIColor, intensity: Float) -> UIColor {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        base.getRed(&r, green: &g, blue: &b, alpha: &a)
+        if intensity <= 1.0 {
+            // Scale brightness: intensity 0 = black, 1.0 = full base color
+            let f = CGFloat(intensity)
+            return UIColor(red: r * f, green: g * f, blue: b * f, alpha: a)
+        } else {
+            // Overblown: lerp from base color toward pure white
+            // intensity 1.0 = base color, intensity 2.0+ = pure white
+            let t = CGFloat(min((intensity - 1.0) / 1.0, 1.0))
+            return UIColor(red: r + (1 - r) * t, green: g + (1 - g) * t,
+                           blue: b + (1 - b) * t, alpha: a)
+        }
+    }
+
     private func applyParameters(_ p: EmotionParameters, animated: Bool) {
         currentParams = p
         let dur: CGFloat = animated ? 1.2 : 0
@@ -106,9 +126,10 @@ final class NeuralSceneManager: ObservableObject {
         for (i, group) in cloudGroups.enumerated() {
             group.removeAllActions()
 
-            // Color
+            // Base color keyed to glow intensity
+            let baseGlowColor = glowColor(from: p.primaryUIColor, intensity: p.glowIntensity)
             SCNTransaction.begin(); SCNTransaction.animationDuration = dur
-            group.geometry?.firstMaterial?.emission.contents = p.primaryUIColor
+            group.geometry?.firstMaterial?.emission.contents = baseGlowColor
             SCNTransaction.commit()
 
             applyEmotionActions(to: group, index: i, params: p, animated: animated)
@@ -146,7 +167,6 @@ final class NeuralSceneManager: ObservableObject {
 
         case .calm:
             // ── Slow synchronized wave: all groups gently ripple in unison ──
-            // Each group has a tiny phase offset → creates traveling wave feel
             let amp   = CGFloat(0.03)
             let speed = p.pulseSpeed   // ~2.5s → slow
             let action = SCNAction.repeatForever(SCNAction.customAction(duration: speed * 2) { nd, t in
@@ -163,11 +183,22 @@ final class NeuralSceneManager: ObservableObject {
             ps.timingMode = .easeInEaseOut; pb.timingMode = .easeInEaseOut
             node.runAction(.repeatForever(.sequence([ps, pb])), forKey: "pulse")
 
+            // ── Glow: soft breathing brightness — phase-offset per group ──
+            // Oscillates between 55% and 85% of base intensity
+            let priC = p.primaryUIColor
+            let glowLo = Float(0.55); let glowHi = Float(0.85)
+            let glowBreath = SCNAction.repeatForever(SCNAction.customAction(duration: speed * 2) { [weak self] nd, t in
+                guard let self else { return }
+                let tf   = Float(t / speed)
+                let bright = glowLo + (glowHi - glowLo) * (0.5 + 0.5 * sin(tf * 2 * .pi + phase))
+                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: priC, intensity: bright)
+            })
+            node.runAction(glowBreath, forKey: "glow")
+
         case .anxiety:
             // ── Chaotic rapid multi-frequency jitter — each group is DIFFERENT ──
-            // Frequency varies 2-6x per group; groups clash → hyperactive firing
-            let freqMult  = 1.5 + fi * 0.6          // group 0: 1.5x, group 7: 5.7x
-            let ampMult   = 0.06 + fi * 0.015        // larger amplitude for higher-index groups
+            let freqMult  = 1.5 + fi * 0.6
+            let ampMult   = 0.06 + fi * 0.015
             let chaosAmp  = CGFloat(ampMult)
             let freqA = 2.31 * freqMult;  let freqB = 3.07 * (8 - fi) / 4
             let freqC = 1.89 * freqMult + 0.5
@@ -193,15 +224,29 @@ final class NeuralSceneManager: ObservableObject {
             sUp.timingMode = .easeIn; sDn.timingMode = .easeOut
             node.runAction(.repeatForever(.sequence([sUp, sDn])), forKey: "pulse")
 
+            // ── Glow: electric white-hot spikes — each group fires at different freq ──
+            // Base stays at 1.0 intensity; spikes shoot to 1.4 (overblown white)
+            // then dim to 0.6, rhythm driven by per-group freqA so they never sync
+            let priC2 = p.primaryUIColor
+            let spikeFreq = freqA * 0.18   // slow down to visible glow-flicker range
+            let glowSpike = SCNAction.repeatForever(SCNAction.customAction(duration: 100) { [weak self] nd, t in
+                guard let self else { return }
+                let tf = Float(t)
+                // Two overlapping sin waves create irregular spiking pattern
+                let raw = 0.70 + 0.30 * sin(tf * spikeFreq + phase)
+                            + 0.15 * sin(tf * spikeFreq * 2.7 + phase * 1.3)
+                let bright = max(0.4, min(1.4, raw))   // clamp; >1.0 → white-hot
+                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: priC2, intensity: Float(bright))
+            })
+            node.runAction(glowSpike, forKey: "glow")
+
         case .sadness:
             // ── Most groups dim/frozen; a few barely stir ──
-            // Groups 0-4 go very dim, 5-7 retain faint motion
             let opacity: CGFloat = i < 5 ? 0.22 + CGFloat(i) * 0.05 : 0.55
             SCNTransaction.begin(); SCNTransaction.animationDuration = animated ? 2.0 : 0
             node.opacity = opacity; SCNTransaction.commit()
 
             if i >= 5 {
-                // A whisper of motion for the mid groups
                 let slowAmp = CGFloat(0.015)
                 let action  = SCNAction.repeatForever(SCNAction.customAction(duration: 8) { nd, t in
                     let tf = Float(t) * 0.3
@@ -216,9 +261,22 @@ final class NeuralSceneManager: ObservableObject {
             sd.timingMode = .easeInEaseOut; su.timingMode = .easeInEaseOut
             node.runAction(.repeatForever(.sequence([sd, su])), forKey: "pulse")
 
+            // ── Glow: barely-there flicker — each group slightly different dim level ──
+            // Groups fade between 0.15 and 0.40 very slowly; higher index = slightly brighter
+            let priC3 = p.primaryUIColor
+            let dimLo = Float(0.12) + fi * 0.015
+            let dimHi = Float(0.32) + fi * 0.020
+            let slowCycle = p.pulseSpeed * 1.8
+            let glowDim = SCNAction.repeatForever(SCNAction.customAction(duration: slowCycle) { [weak self] nd, t in
+                guard let self else { return }
+                let tf = Float(t / slowCycle)
+                let bright = dimLo + (dimHi - dimLo) * (0.5 + 0.5 * sin(tf * 2 * .pi + phase))
+                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: priC3, intensity: bright)
+            })
+            node.runAction(glowDim, forKey: "glow")
+
         case .love:
             // ── Cascading wave: groups fire sequentially → rhythmic cascade ──
-            // Each group is delayed by its index → "neural signal propagating"
             let delay  = Double(i) * p.pulseSpeed / Double(groupCount)
             let medAmp = CGFloat(0.055)
             let wave   = SCNAction.repeatForever(SCNAction.customAction(duration: p.pulseSpeed * 1.5) { nd, t in
@@ -231,21 +289,27 @@ final class NeuralSceneManager: ObservableObject {
             node.runAction(.sequence([waitAct, wave]), forKey: "motion")
             node.opacity = 1.0
 
-            // Colour cascade: alt between primary and secondary per wave
-            let secColor = p.secondaryUIColor.withAlphaComponent(0.9)
-            let priColor = p.primaryUIColor
-            let colorFwd = SCNAction.customAction(duration: p.pulseSpeed * 0.5) { nd, t in
-                let frac = CGFloat(t / p.pulseSpeed * 0.5)
-                nd.geometry?.firstMaterial?.emission.contents =
-                    frac < 0.5 ? priColor : secColor
-            }
-            let colorBk = SCNAction.customAction(duration: p.pulseSpeed * 0.5) { nd, t in
-                nd.geometry?.firstMaterial?.emission.contents = priColor
-            }
-            let colorSeq = SCNAction.repeatForever(.sequence([
-                .wait(duration: delay), colorFwd, colorBk
-            ]))
-            node.runAction(colorSeq, forKey: "colorwave")
+            // Colour + glow cascade unified — hue blends pri→sec while brightness rides 0.65→1.10
+            // Both driven by the same sin wave so peak brightness aligns with warm-gold hue shift
+            let priC4  = p.primaryUIColor
+            let secC4  = p.secondaryUIColor
+            let glowLo4 = Float(0.65); let glowHi4 = Float(1.10)
+            let unified = SCNAction.repeatForever(SCNAction.customAction(duration: p.pulseSpeed) { [weak self] nd, t in
+                guard let self else { return }
+                let tf     = Float(t / p.pulseSpeed)
+                let bright = glowLo4 + (glowHi4 - glowLo4) * (0.5 + 0.5 * sin(tf * 2 * .pi + phase))
+                let hueBlend = CGFloat(0.5 + 0.5 * sin(tf * 2 * .pi + phase))
+                var pr: CGFloat = 0, pg: CGFloat = 0, pb: CGFloat = 0, pa: CGFloat = 0
+                var sr: CGFloat = 0, sg: CGFloat = 0, sb: CGFloat = 0, sa: CGFloat = 0
+                priC4.getRed(&pr, green: &pg, blue: &pb, alpha: &pa)
+                secC4.getRed(&sr, green: &sg, blue: &sb, alpha: &sa)
+                let blended = UIColor(red: pr + (sr - pr) * hueBlend,
+                                     green: pg + (sg - pg) * hueBlend,
+                                     blue: pb + (sb - pb) * hueBlend, alpha: 1)
+                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: blended, intensity: bright)
+            })
+            let glowSeq = SCNAction.sequence([.wait(duration: delay), .repeatForever(unified)])
+            node.runAction(glowSeq, forKey: "glow")
 
             // Heartbeat-like scale pulse
             let h1 = SCNAction.scale(to: 1.12, duration: p.pulseSpeed * 0.18)

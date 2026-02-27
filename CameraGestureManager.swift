@@ -13,8 +13,6 @@ enum GestureState: String {
 }
 
 // MARK: - CaptureDelegate
-// Inherits from NSObject, lives on processingQueue, handles all Vision processing.
-// @unchecked Sendable: all mutable state (centroidHistory) is only touched on processingQueue.
 
 private final class CaptureDelegate: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
 
@@ -77,15 +75,16 @@ final class CameraGestureManager: ObservableObject {
     @Published var gestureState: GestureState = .none
     @Published var isSteadyHand: Bool = false
 
-    // nonisolated(unsafe): accessed from background threads (setupAndRun, stopSession, CameraPreviewView)
     nonisolated(unsafe) let captureSession = AVCaptureSession()
     private nonisolated(unsafe) var captureDelegate: CaptureDelegate?
+    // Track whether we have already configured the session inputs/outputs once.
+    // The session is reused across stop/start cycles — only the delegate changes.
+    private nonisolated(unsafe) var sessionConfigured = false
     private let processingQueue = DispatchQueue(label: "com.feelinit.camera", qos: .userInteractive)
 
     // MARK: Control
 
     func startSession() {
-        // Task.detached + nonisolated setupAndRun = truly stays off main thread
         Task.detached { [weak self] in
             await self?.setupAndRun()
         }
@@ -93,37 +92,60 @@ final class CameraGestureManager: ObservableObject {
 
     nonisolated func stopSession() {
         captureSession.stopRunning()
+        // Reset published state on main actor
+        Task { @MainActor [weak self] in
+            self?.gestureState = .none
+            self?.isSteadyHand = false
+        }
     }
 
-    // MARK: Setup (nonisolated → runs on cooperative pool, NOT main thread)
+    // MARK: Setup (nonisolated — stays off main thread)
 
     nonisolated private func setupAndRun() async {
         guard await requestCameraPermission() else { return }
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front),
-              let input  = try? AVCaptureDeviceInput(device: device) else { return }
 
+        // ── Fresh delegate every time so callbacks arrive on the live output ──
         let delegate = CaptureDelegate { [weak self] gesture, steady in
             Task { @MainActor [weak self] in
                 self?.gestureState = gesture
                 self?.isSteadyHand = steady
             }
         }
-        captureDelegate = delegate   // nonisolated(unsafe) — safe: written once before startRunning
+        captureDelegate = delegate   // strong reference keeps it alive
 
-        let output = AVCaptureVideoDataOutput()
-        output.videoSettings = [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
-        ]
-        output.alwaysDiscardsLateVideoFrames = true
-        output.setSampleBufferDelegate(delegate, queue: processingQueue)
+        if !sessionConfigured {
+            // First-time setup: add input + output to the session
+            guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front),
+                  let input  = try? AVCaptureDeviceInput(device: device) else { return }
 
-        captureSession.beginConfiguration()
-        captureSession.sessionPreset = .medium
-        if captureSession.canAddInput(input)  { captureSession.addInput(input) }
-        if captureSession.canAddOutput(output) { captureSession.addOutput(output) }
-        captureSession.commitConfiguration()
+            let output = AVCaptureVideoDataOutput()
+            output.videoSettings = [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+            ]
+            output.alwaysDiscardsLateVideoFrames = true
+            output.setSampleBufferDelegate(delegate, queue: processingQueue)
 
-        captureSession.startRunning()   // ← blocking, but off main thread ✓
+            captureSession.beginConfiguration()
+            captureSession.sessionPreset = .medium
+            if captureSession.canAddInput(input)   { captureSession.addInput(input) }
+            if captureSession.canAddOutput(output)  { captureSession.addOutput(output) }
+            captureSession.commitConfiguration()
+
+            sessionConfigured = true
+        } else {
+            // Session already has hardware inputs/outputs wired up.
+            // We only need to swap the sample-buffer delegate on the existing output
+            // so frames reach the fresh CaptureDelegate.
+            if let existingOutput = captureSession.outputs.first(where: { $0 is AVCaptureVideoDataOutput })
+                as? AVCaptureVideoDataOutput {
+                existingOutput.setSampleBufferDelegate(delegate, queue: processingQueue)
+            }
+        }
+
+        // startRunning is idempotent when already running, safe to call again.
+        if !captureSession.isRunning {
+            captureSession.startRunning()
+        }
     }
 
     nonisolated private func requestCameraPermission() async -> Bool {

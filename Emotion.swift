@@ -28,6 +28,19 @@ enum Emotion: String, CaseIterable, Identifiable {
         }
     }
 
+    var neuralCaption: String {
+        switch self {
+        case .calm:
+            return "Neurons fire in slow, synchronized waves — your brain is settling into effortful peace."
+        case .anxiety:
+            return "Rapid, desynchronized firing floods your circuits — your brain is in high-alert overdrive."
+        case .sadness:
+            return "Reduced synaptic activity dims your neural network — withdrawal conserves energy."
+        case .love:
+            return "Dopamine and oxytocin flood reward circuits — your neurons are lighting up in warm cascades."
+        }
+    }
+
     var color: Color {
         switch self {
         case .calm:    return Color(red: 0.20, green: 0.55, blue: 0.95)
@@ -52,6 +65,7 @@ struct EmotionParameters: Sendable {
     var connectionOpacity: Float
     var particleBirthRate: Float
     var rotationDuration: Double // seconds for full Y rotation
+    var glowIntensity: Float    // base emission brightness 0–1 (calm≈0.72, anxiety=1.0, sadness≈0.30, love≈0.90)
 
     var primaryUIColor: UIColor {
         UIColor(red: CGFloat(priR), green: CGFloat(priG), blue: CGFloat(priB), alpha: 1)
@@ -68,7 +82,8 @@ struct EmotionParameters: Sendable {
                 secR: 0.10, secG: 0.30, secB: 0.70,
                 turbulence: 0.04, pulseSpeed: 2.5, connectivity: 0.75,
                 particleVelocity: 0.3, connectionOpacity: 0.55,
-                particleBirthRate: 15, rotationDuration: 20
+                particleBirthRate: 15, rotationDuration: 20,
+                glowIntensity: 0.72
             )
         case .anxiety:
             return EmotionParameters(
@@ -76,7 +91,8 @@ struct EmotionParameters: Sendable {
                 secR: 0.90, secG: 0.58, secB: 0.02,
                 turbulence: 0.35, pulseSpeed: 0.5, connectivity: 0.45,
                 particleVelocity: 2.5, connectionOpacity: 0.80,
-                particleBirthRate: 80, rotationDuration: 5
+                particleBirthRate: 80, rotationDuration: 5,
+                glowIntensity: 1.0
             )
         case .sadness:
             return EmotionParameters(
@@ -84,7 +100,8 @@ struct EmotionParameters: Sendable {
                 secR: 0.18, secG: 0.20, secB: 0.38,
                 turbulence: 0.06, pulseSpeed: 4.0, connectivity: 0.28,
                 particleVelocity: 0.12, connectionOpacity: 0.28,
-                particleBirthRate: 5, rotationDuration: 35
+                particleBirthRate: 5, rotationDuration: 35,
+                glowIntensity: 0.30
             )
         case .love:
             return EmotionParameters(
@@ -92,7 +109,8 @@ struct EmotionParameters: Sendable {
                 secR: 0.90, secG: 0.75, secB: 0.20,
                 turbulence: 0.12, pulseSpeed: 1.2, connectivity: 0.90,
                 particleVelocity: 0.55, connectionOpacity: 0.68,
-                particleBirthRate: 35, rotationDuration: 15
+                particleBirthRate: 35, rotationDuration: 15,
+                glowIntensity: 0.90
             )
         }
     }
@@ -110,7 +128,8 @@ struct EmotionParameters: Sendable {
             particleVelocity: m(a.particleVelocity, b.particleVelocity),
             connectionOpacity: m(a.connectionOpacity, b.connectionOpacity),
             particleBirthRate: m(a.particleBirthRate, b.particleBirthRate),
-            rotationDuration: md(a.rotationDuration, b.rotationDuration)
+            rotationDuration: md(a.rotationDuration, b.rotationDuration),
+            glowIntensity: m(a.glowIntensity, b.glowIntensity)
         )
     }
 }

@@ -1,13 +1,30 @@
 import SwiftUI
 import Combine
 
+// MARK: - GuidedPhase
+
+enum GuidedPhase: Equatable {
+    case hidden          // No emotion selected
+    case caption         // Show educational caption bubble (5s)
+    case restoreButton   // Caption gone, "Restore Balance" button floats in
+    case stabilizing     // User tapped Restore Balance; camera active; guidance shown
+    case restored        // Balance achieved; show calm message
+    case cameraFading    // 2s camera fade-out before returning to hidden
+}
+
+// MARK: - EmotionViewModel
+
 @MainActor
 final class EmotionViewModel: ObservableObject {
 
     @Published var selectedEmotion: Emotion? = nil
     @Published var displayParameters: EmotionParameters = EmotionParameters.make(for: .calm)
+    @Published var guidedPhase: GuidedPhase = .hidden
+    @Published var cameraPreviewOpacity: Double = 0.0
+
+    // Legacy — kept for the status pills in the HUD
     @Published var isRegulating: Bool = false
-    @Published var regulationProgress: Double = 0   // 0–1 over 3 seconds
+    @Published var regulationProgress: Double = 0
 
     let breathingManager = BreathingManager()
     let cameraManager   = CameraGestureManager()
@@ -16,32 +33,73 @@ final class EmotionViewModel: ObservableObject {
     private var dstParams: EmotionParameters = EmotionParameters.make(for: .calm)
     private var lerpT: Float = 1.0
     private var lerpTimer: Timer?
-    private var regulationAccum: Double = 0
-    private var regulationTimer: Timer?
 
-    init() { startRegulationMonitor() }
+    private var captionTimer: Timer?
+    private var stabilizeAccum: Double = 0
+    private var stabilizeTimer: Timer?
 
-    // Timers use [weak self] so no retain cycle; no deinit needed in Swift 6
-    // (nonisolated deinit cannot touch @MainActor-isolated Timer properties)
+    init() { startStabilizeMonitor() }
 
-    // MARK: Public
+    // MARK: - Public API
 
     func selectEmotion(_ emotion: Emotion) {
-        selectedEmotion = emotion
-        regulationAccum = 0; isRegulating = false; regulationProgress = 0
+        selectedEmotion  = emotion
+        guidedPhase      = .caption
+        isRegulating     = false
+        regulationProgress = 0
+        stabilizeAccum   = 0
+
+        // Neuron transitions to detected emotion
         transition(to: EmotionParameters.make(for: emotion), duration: 1.2)
+
+        // Breathing detection starts immediately (silent background)
         breathingManager.start()
-        cameraManager.startSession()
+
+        // Camera stays OFF until user taps Restore Balance
+
+        // After 5s, caption fades — restore button floats in
+        captionTimer?.invalidate()
+        captionTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard self?.guidedPhase == .caption else { return }
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    self?.guidedPhase = .restoreButton
+                }
+            }
+        }
     }
 
     func clearEmotion() {
         selectedEmotion = nil
+        guidedPhase     = .hidden
+        cameraPreviewOpacity = 0
+        captionTimer?.invalidate()
         breathingManager.stop()
         cameraManager.stopSession()
-        regulationAccum = 0; isRegulating = false; regulationProgress = 0
+        stabilizeAccum = 0
+        isRegulating = false
+        regulationProgress = 0
     }
 
-    // MARK: Parameter Transition
+    /// Called when user taps "Restore Balance"
+    func restoreBalance() {
+        guard guidedPhase == .restoreButton else { return }
+
+        // Start camera session (async background task)
+        cameraManager.startSession()
+        stabilizeAccum = 0
+
+        // Change phase and opacity atomically in one animation block.
+        // If they're in separate blocks, cameraPreviewOpacity starts animating
+        // on a view that doesn't exist yet (inserted only when guidedPhase hits
+        // .stabilizing), so the view can appear with a partially-played opacity value.
+        withAnimation(.easeInOut(duration: 0.4)) {
+            guidedPhase          = .stabilizing
+            cameraPreviewOpacity = 1.0
+        }
+    }
+
+    // MARK: - Parameter Transition
 
     func transition(to target: EmotionParameters, duration: Double = 1.5) {
         srcParams = displayParameters
@@ -50,7 +108,6 @@ final class EmotionViewModel: ObservableObject {
         lerpTimer?.invalidate()
         let step = Float(0.016 / duration)
         lerpTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [weak self] _ in
-            // Do not capture 'timer' — not Sendable across actor boundaries
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.lerpT = min(1.0, self.lerpT + step)
@@ -60,38 +117,60 @@ final class EmotionViewModel: ObservableObject {
         }
     }
 
-    // MARK: Anxiety Regulation Monitor
+    // MARK: - Stabilization Monitor (all emotions when in .stabilizing)
 
-    private func startRegulationMonitor() {
-        regulationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.checkRegulation() }
+    private func startStabilizeMonitor() {
+        stabilizeTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.checkStabilization() }
         }
     }
 
-    private func checkRegulation() {
-        guard selectedEmotion == .anxiety, !isRegulating else {
-            if selectedEmotion != .anxiety { regulationAccum = 0; regulationProgress = 0 }
+    private func checkStabilization() {
+        guard guidedPhase == .stabilizing else {
+            stabilizeAccum     = 0
+            regulationProgress = 0
             return
         }
-        if cameraManager.isSteadyHand && breathingManager.isCalmBreathing {
-            regulationAccum += 0.1
-            regulationProgress = min(1.0, regulationAccum / 3.0)
-            if regulationAccum >= 3.0 { triggerRegulation() }
+
+        let steady = cameraManager.isSteadyHand
+        let calm   = breathingManager.isCalmBreathing
+
+        if steady && calm {
+            stabilizeAccum  += 0.1
+            regulationProgress = min(1.0, stabilizeAccum / 3.0)
+            if stabilizeAccum >= 3.0 { triggerBalanceRestored() }
         } else {
-            regulationAccum = max(0, regulationAccum - 0.15)
-            regulationProgress = max(0, regulationAccum / 3.0)
+            stabilizeAccum  = max(0, stabilizeAccum - 0.15)
+            regulationProgress = max(0, stabilizeAccum / 3.0)
         }
     }
 
-    private func triggerRegulation() {
+    private func triggerBalanceRestored() {
         isRegulating = true
+        guidedPhase  = .restored
         transition(to: EmotionParameters.make(for: .calm), duration: 3.0)
+
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(3.5))
-            self.selectedEmotion = .calm
-            self.isRegulating = false
-            self.regulationAccum = 0
+            // Wait for user to read the restored message
+            try? await Task.sleep(for: .seconds(3.0))
+            guard self.guidedPhase == .restored else { return }
+
+            // Fade camera out over 2s
+            withAnimation(.easeInOut(duration: 2.0)) {
+                self.cameraPreviewOpacity = 0
+                self.guidedPhase = .cameraFading
+            }
+
+            try? await Task.sleep(for: .seconds(2.2))
+            guard self.guidedPhase == .cameraFading else { return }
+
+            self.cameraManager.stopSession()
+            self.selectedEmotion   = .calm
+            self.isRegulating      = false
+            self.stabilizeAccum    = 0
             self.regulationProgress = 0
+            // Restart the guided flow at caption for calm
+            withAnimation(.easeInOut(duration: 0.4)) { self.guidedPhase = .hidden }
         }
     }
 }
