@@ -21,6 +21,7 @@ final class EmotionViewModel: ObservableObject {
     @Published var displayParameters: EmotionParameters = EmotionParameters.make(for: .calm)
     @Published var guidedPhase: GuidedPhase = .hidden
     @Published var cameraPreviewOpacity: Double = 0.0
+    @Published var sessions: [EmotionSession] = []   // journey history
 
     // Legacy — kept for the status pills in the HUD
     @Published var isRegulating: Bool = false
@@ -37,6 +38,7 @@ final class EmotionViewModel: ObservableObject {
     private var captionTimer: Timer?
     private var stabilizeAccum: Double = 0
     private var stabilizeTimer: Timer?
+    private var stabilizationStartTime: Date?
 
     init() { startStabilizeMonitor() }
 
@@ -88,11 +90,8 @@ final class EmotionViewModel: ObservableObject {
         // Start camera session (async background task)
         cameraManager.startSession()
         stabilizeAccum = 0
+        stabilizationStartTime = Date()    // begin timing
 
-        // Change phase and opacity atomically in one animation block.
-        // If they're in separate blocks, cameraPreviewOpacity starts animating
-        // on a view that doesn't exist yet (inserted only when guidedPhase hits
-        // .stabilizing), so the view can appear with a partially-played opacity value.
         withAnimation(.easeInOut(duration: 0.4)) {
             guidedPhase          = .stabilizing
             cameraPreviewOpacity = 1.0
@@ -146,6 +145,20 @@ final class EmotionViewModel: ObservableObject {
     }
 
     private func triggerBalanceRestored() {
+        // Record session data
+        let elapsed = stabilizationStartTime.map { Date().timeIntervalSince($0) } ?? 0
+        let quality = breathingManager.isCalmBreathing ? "Calm" : "Elevated"
+        if let emotion = selectedEmotion {
+            // Only record if not already explored this emotion in this session
+            if !sessions.contains(where: { $0.emotion == emotion }) {
+                sessions.append(EmotionSession(
+                    emotion: emotion,
+                    date: Date(),
+                    stabilizationTime: elapsed,
+                    breathingQuality: quality
+                ))
+            }
+        }
         isRegulating = true
         guidedPhase  = .restored
         transition(to: EmotionParameters.make(for: .calm), duration: 3.0)
