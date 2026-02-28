@@ -115,7 +115,10 @@ struct NeuralVisualizationView: View {
 
                 // Restore Balance button (phase: .restoreButton)
                 if viewModel.guidedPhase == .restoreButton {
-                    RestoreBalanceButton(color: emotion.color) {
+                    RestoreBalanceButton(
+                        color: emotion.color,
+                        isCalm: emotion == .calm
+                    ) {
                         viewModel.restoreBalance()
                     }
                     .padding(.bottom, 16)
@@ -153,6 +156,16 @@ struct NeuralVisualizationView: View {
         }
         .onReceive(viewModel.$displayParameters) { params in
             sceneManager.update(parameters: params)
+        }
+        .onReceive(viewModel.$isRegulating) { regulating in
+            if regulating {
+                if viewModel.selectedEmotion != .calm {
+                    sceneManager.beginRestoreAnimation()
+                }
+            } else if sceneManager.isRestoring {
+                // Snap to calm immediately — no delay
+                sceneManager.finishRestoreAnimation()
+            }
         }
     }
 }
@@ -288,20 +301,21 @@ struct NeuralCaptionBubble: View {
 
 struct RestoreBalanceButton: View {
     let color: Color
+    var isCalm: Bool = false
     let action: () -> Void
     @State private var pulse = false
 
     var body: some View {
         VStack(spacing: 8) {
-            Text("Ready to return to balance?")
+            Text(isCalm ? "Take a moment to center yourself" : "Ready to return to balance?")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.white.opacity(0.45))
 
             Button(action: action) {
                 HStack(spacing: 8) {
-                    Image(systemName: "waveform.path.ecg")
+                    Image(systemName: isCalm ? "brain.head.profile" : "waveform.path.ecg")
                         .font(.system(size: 15, weight: .semibold))
-                    Text("Restore Balance")
+                    Text(isCalm ? "Practice Balance" : "Restore Balance")
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
                 }
                 .foregroundStyle(.white)

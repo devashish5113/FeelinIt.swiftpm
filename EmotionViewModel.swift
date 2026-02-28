@@ -175,25 +175,23 @@ final class EmotionViewModel: ObservableObject {
         transition(to: EmotionParameters.make(for: .calm), duration: 3.0)
 
         Task { @MainActor in
-            // Wait for user to read the restored message
+            // Wait for parameter transition to finish
             try? await Task.sleep(for: .seconds(3.0))
             guard self.guidedPhase == .restored else { return }
 
-            // Fade camera out over 2s
-            withAnimation(.easeInOut(duration: 2.0)) {
+            // Set label to calm + stop restoring + fade camera — all at once
+            self.selectedEmotion    = .calm
+            self.isRegulating       = false
+            self.stabilizeAccum     = 0
+            self.regulationProgress = 0
+
+            withAnimation(.easeInOut(duration: 1.5)) {
                 self.cameraPreviewOpacity = 0
                 self.guidedPhase = .cameraFading
             }
 
-            try? await Task.sleep(for: .seconds(2.2))
-            guard self.guidedPhase == .cameraFading else { return }
-
+            try? await Task.sleep(for: .seconds(1.8))
             self.cameraManager.stopSession()
-            self.selectedEmotion   = .calm
-            self.isRegulating      = false
-            self.stabilizeAccum    = 0
-            self.regulationProgress = 0
-            // Restart the guided flow at caption for calm
             withAnimation(.easeInOut(duration: 0.4)) { self.guidedPhase = .hidden }
         }
     }

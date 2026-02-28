@@ -27,6 +27,9 @@ final class NeuralSceneManager: ObservableObject {
     private var synapsePaths: [[SCNVector3]] = []
     private var impulseTask: Task<Void, Never>?
 
+    // Restore balance animation
+    private(set) var isRestoring = false
+
     private let groupCount = 8
 
     init() {
@@ -104,7 +107,105 @@ final class NeuralSceneManager: ObservableObject {
 
     // MARK: - Update
 
-    func update(parameters: EmotionParameters) { applyParameters(parameters, animated: true) }
+    func update(parameters: EmotionParameters) {
+        // During restore animation, only apply rotation/motion — skip color changes
+        guard !isRestoring else {
+            currentParams = parameters
+            sphereRoot.removeAction(forKey: "rot")
+            sphereRoot.runAction(.repeatForever(
+                .rotateBy(x: 0.06, y: CGFloat(2 * Double.pi), z: 0.03,
+                          duration: parameters.rotationDuration)
+            ), forKey: "rot")
+            return
+        }
+        applyParameters(parameters, animated: true)
+    }
+
+    // MARK: - Restore Balance Animation
+
+    /// Call when restore-balance begins. Goes white, stops impulses, plays
+    /// a visible convergence spiral that settles the cloud groups inward.
+    func beginRestoreAnimation() {
+        isRestoring = true
+
+        // 1. Stop impulses
+        impulseTask?.cancel()
+        impulseRoot.enumerateChildNodes { [weak self] node, _ in
+            guard node !== self?.synapseNode else { return }
+            node.removeFromParentNode()
+        }
+
+        // 2. Set boutons + connections to white
+        if !synapsePositions.isEmpty {
+            buildSynapseDisplay(positions: synapsePositions,
+                                color: UIColor(white: 0.85, alpha: 1))
+        }
+        let skel = skeletonPts
+        if !skel.isEmpty {
+            let (v, i) = Self.connectionGeo(positions: skel, threshold: 0.30)
+            placeLines(vertices: v, indices: i, color: UIColor(white: 0.50, alpha: 1))
+        }
+
+        // 3. Fade cloud groups to dim white
+        let white = UIColor(white: 0.45, alpha: 1)
+        for group in cloudGroups {
+            group.removeAllActions()
+            SCNTransaction.begin()
+            SCNTransaction.animationDuration = 1.2
+            group.geometry?.firstMaterial?.emission.contents = white
+            group.geometry?.firstMaterial?.diffuse.contents = white
+            SCNTransaction.commit()
+        }
+
+        // 4. Convergence spiral: groups pull inward toward center + gentle spin
+        for (i, group) in cloudGroups.enumerated() {
+            let phase  = Float(i) * 2 * .pi / Float(groupCount)
+            let delay  = Double(i) * 0.15   // stagger
+            let settle = SCNAction.customAction(duration: 2.5) { nd, t in
+                let prog = Float(t / 2.5)
+                // Shrink orbit radius toward 0 (convergence)
+                let radius = 0.045 * (1.0 - prog * prog)   // quadratic ease-in
+                let angle  = prog * 6 * .pi + phase         // spiraling
+                let x = radius * cos(angle)
+                let y = radius * sin(angle)
+                let z = radius * sin(angle * 0.7) * 0.4
+                nd.position = SCNVector3(x, y, z)
+                // Scale slightly down then back to 1
+                let s = 1.0 - 0.08 * sin(Double(prog) * .pi)
+                nd.scale = SCNVector3(s, s, s)
+            }
+            settle.timingMode = .easeInEaseOut
+
+            // Gentle brightening pulse near the end
+            let brighten = SCNAction.customAction(duration: 2.5) { nd, t in
+                let prog = Float(t / 2.5)
+                let brightness = 0.45 + 0.35 * prog   // 0.45 → 0.80
+                let c = UIColor(white: CGFloat(brightness), alpha: 1)
+                nd.geometry?.firstMaterial?.emission.contents = c
+            }
+
+            let waitThenSettle = SCNAction.sequence([
+                .wait(duration: delay),
+                .group([settle, brighten])
+            ])
+            group.runAction(waitThenSettle, forKey: "restoreSettle")
+        }
+    }
+
+    /// Call when restore-balance is complete. Snaps everything to calm colors.
+    func finishRestoreAnimation() {
+        isRestoring = false
+
+        // Reset group positions
+        for group in cloudGroups {
+            group.removeAction(forKey: "restoreSettle")
+            group.position = .init(0, 0, 0)
+            group.scale    = .init(1, 1, 1)
+        }
+
+        // Apply calm parameters normally
+        applyParameters(EmotionParameters.make(for: .calm), animated: true)
+    }
 
     // MARK: - Glow helpers
 
