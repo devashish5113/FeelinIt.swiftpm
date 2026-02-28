@@ -1,0 +1,228 @@
+import SwiftUI
+
+// MARK: - Articles Tab
+
+struct ArticlesView: View {
+    @State private var selectedArticle: EmotionArticle? = nil
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 32) {
+                    ForEach(Emotion.allCases) { emotion in
+                        EmotionArticleSection(emotion: emotion, onSelect: { selectedArticle = $0 })
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 20)
+            }
+            .background(Color(.systemBackground))
+            .navigationTitle("Articles")
+            .navigationBarTitleDisplayMode(.large)
+        }
+        // Native iOS sheet — presented from the top-level tab view, no nesting issues
+        .sheet(item: $selectedArticle) { article in
+            ArticleDetailSheet(
+                article: article,
+                accentColor: accentColor(for: article)
+            )
+        }
+    }
+
+    // Map article back to its emotion colour for the detail sheet
+    private func accentColor(for article: EmotionArticle) -> Color {
+        for emotion in Emotion.allCases {
+            if emotion.articles.contains(where: { $0.id == article.id }) {
+                return emotion.color
+            }
+        }
+        return .purple
+    }
+}
+
+// MARK: - Per-emotion Section
+
+private struct EmotionArticleSection: View {
+    let emotion: Emotion
+    let onSelect: (EmotionArticle) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Section heading
+            Text("About \(emotion.rawValue)")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(Color(.label))
+
+            ForEach(emotion.articles) { article in
+                ArticleBrowseCard(
+                    article: article,
+                    accentColor: emotion.color,
+                    onTap: { onSelect(article) }
+                )
+            }
+        }
+    }
+}
+
+// MARK: - Browse Card (light, Health-app style)
+
+struct ArticleBrowseCard: View {
+    let article: EmotionArticle
+    let accentColor: Color
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 0) {
+
+                // Thumbnail
+                ZStack {
+                    LinearGradient(
+                        colors: [accentColor.opacity(0.65), accentColor.opacity(0.25)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                    if let uiImg = UIImage(named: article.thumbnailName) {
+                        Image(uiImage: uiImg)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Image(systemName: placeholderIcon)
+                            .font(.system(size: 52, weight: .ultraLight))
+                            .foregroundStyle(.white.opacity(0.40))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 180)
+                .clipped()
+
+                // Text block
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(article.title)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(Color(.label))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+
+                    Text(article.subtitle)
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color(.secondaryLabel))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+                }
+                .padding(16)
+                .background(Color(.secondarySystemBackground))
+            }
+        }
+        .buttonStyle(.plain)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
+    }
+
+    private var placeholderIcon: String {
+        switch article.thumbnailName {
+        case let n where n.contains("calm"):    return "waveform.path.ecg"
+        case let n where n.contains("anxiety"): return "bolt.fill"
+        case let n where n.contains("sadness"): return "cloud.rain.fill"
+        case let n where n.contains("love"):    return "heart.fill"
+        case let n where n.contains("happy"):   return "sparkles"
+        case let n where n.contains("angry"):   return "flame.fill"
+        default: return "doc.text.fill"
+        }
+    }
+}
+
+// MARK: - Article Full-Screen Reader Sheet
+
+struct ArticleDetailSheet: View {
+    let article: EmotionArticle
+    let accentColor: Color
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+
+                    // Hero thumbnail
+                    ZStack {
+                        LinearGradient(
+                            colors: [accentColor.opacity(0.65), accentColor.opacity(0.25)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                        if let uiImg = UIImage(named: article.thumbnailName) {
+                            Image(uiImage: uiImg)
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Image(systemName: heroIcon)
+                                .font(.system(size: 80, weight: .ultraLight))
+                                .foregroundStyle(.white.opacity(0.35))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 240)
+                    .clipped()
+
+                    // Article body
+                    VStack(alignment: .leading, spacing: 22) {
+                        Text(article.title)
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundStyle(Color(.label))
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        ForEach(article.sections) { section in
+                            VStack(alignment: .leading, spacing: 8) {
+                                if !section.heading.isEmpty {
+                                    Text(section.heading)
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundStyle(Color(.label))
+                                }
+                                Text(section.body)
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(Color(.secondaryLabel))
+                                    .lineSpacing(5)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+
+                        // Source attribution
+                        HStack(spacing: 5) {
+                            Image(systemName: "link")
+                                .font(.system(size: 11))
+                            Text("Source: \(article.source)")
+                                .font(.system(size: 12))
+                        }
+                        .foregroundStyle(Color(.tertiaryLabel))
+                        .padding(.top, 6)
+                        .padding(.bottom, 40)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+                    .background(Color(.systemBackground))
+                }
+            }
+            .ignoresSafeArea(edges: .top)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .fontWeight(.semibold)
+                        .foregroundStyle(accentColor)
+                }
+            }
+        }
+    }
+
+    private var heroIcon: String {
+        switch article.thumbnailName {
+        case let n where n.contains("calm"):    return "waveform.path.ecg"
+        case let n where n.contains("anxiety"): return "bolt.fill"
+        case let n where n.contains("sadness"): return "cloud.rain.fill"
+        case let n where n.contains("love"):    return "heart.fill"
+        case let n where n.contains("happy"):   return "sparkles"
+        case let n where n.contains("angry"):   return "flame.fill"
+        default: return "doc.text.fill"
+        }
+    }
+}
+

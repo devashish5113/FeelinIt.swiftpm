@@ -412,8 +412,6 @@ struct SessionDetailSheet: View {
     @State private var calendarOffset: Int = 0
     // Frequency bar graph period, lifted so section title can reflect it
     @State private var freqPeriod: FrequencyPeriod = .week
-    // Lifted article selection — avoids nested-sheet SwiftUI bug
-    @State private var selectedArticle: EmotionArticle? = nil
 
     // "February 2026" based on calendarOffset
     private var calendarMonthTitle: String {
@@ -507,36 +505,12 @@ struct SessionDetailSheet: View {
                         sessions: viewModel.sessions,
                         period: $freqPeriod
                     )
-                } header: { EmptyView() }
+                 } header: { EmptyView() }
 
-                // ── About [Emotion] ───────────────────────────────────────
-                // Section heading — outside any card, just like Apple Health
-                HStack(spacing: 8) {
-                    Image(systemName: "book.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(session.emotion.color)
-                    Text("About \(session.emotion.rawValue)")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
-                }
-                .padding(.top, 4)
-
-                // 3 flat article browse cards
-                ForEach(session.emotion.articles) { article in
-                    ArticleCardView(
-                        article: article,
-                        accentColor: session.emotion.color,
-                        onTap: { selectedArticle = article }
-                    )
-                }
-            }
+            }   // VStack
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
-        }
-        // fullScreenCover avoids nested-sheet SwiftUI hang
-        .fullScreenCover(item: $selectedArticle) { article in
-            ArticleDetailSheet(article: article, accentColor: session.emotion.color)
-        }
+        }   // ScrollView
         .background(
             ZStack {
                 Color.clear.ignoresSafeArea()
@@ -877,106 +851,6 @@ struct ArticleCardView: View {
         }
     }
 }
-
-
-// MARK: - Article Full-Screen Sheet
-
-struct ArticleDetailSheet: View {
-    let article: EmotionArticle
-    let accentColor: Color
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-
-                    // ── Hero thumbnail ─────────────────────────────────
-                    ZStack {
-                        LinearGradient(
-                            colors: [accentColor.opacity(0.60), accentColor.opacity(0.25)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
-                        if let uiImg = UIImage(named: article.thumbnailName) {
-                            Image(uiImage: uiImg)
-                                .resizable()
-                                .scaledToFill()
-                        } else {
-                            Image(systemName: heroIcon)
-                                .font(.system(size: 80, weight: .ultraLight))
-                                .foregroundStyle(.white.opacity(0.30))
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 220)
-                    .clipped()
-
-                    // ── Article body ───────────────────────────────────
-                    VStack(alignment: .leading, spacing: 22) {
-
-                        // Big title
-                        Text(article.title)
-                            .font(.system(size: 28, weight: .bold, design: .default))
-                            .foregroundStyle(Color(.label))
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        // Sections
-                        ForEach(article.sections) { section in
-                            VStack(alignment: .leading, spacing: 8) {
-                                if !section.heading.isEmpty {
-                                    Text(section.heading)
-                                        .font(.system(size: 18, weight: .bold))
-                                        .foregroundStyle(Color(.label))
-                                }
-                                Text(section.body)
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(Color(.secondaryLabel))
-                                    .lineSpacing(5)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-
-                        // Source attribution
-                        HStack(spacing: 5) {
-                            Image(systemName: "link")
-                                .font(.system(size: 11))
-                            Text("Source: \(article.source)")
-                                .font(.system(size: 12))
-                        }
-                        .foregroundStyle(Color(.tertiaryLabel))
-                        .padding(.top, 8)
-                        .padding(.bottom, 40)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
-                    .background(Color(.systemBackground))
-                }
-            }
-            .ignoresSafeArea(edges: .top)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .fontWeight(.semibold)
-                        .foregroundStyle(accentColor)
-                }
-            }
-        }
-    }
-
-    private var heroIcon: String {
-        switch article.thumbnailName {
-        case let n where n.contains("calm"):    return "waveform.path.ecg"
-        case let n where n.contains("anxiety"): return "bolt.fill"
-        case let n where n.contains("sadness"): return "cloud.rain.fill"
-        case let n where n.contains("love"):    return "heart.fill"
-        case let n where n.contains("happy"):   return "sparkles"
-        case let n where n.contains("angry"):   return "flame.fill"
-        default: return "doc.text.fill"
-        }
-    }
-}
-
 
 // MARK: - Star Field
 

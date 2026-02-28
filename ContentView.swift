@@ -18,6 +18,12 @@ struct ContentView: View {
                     .tabItem {
                         Label("Journey", systemImage: "sparkles")
                     }
+
+                // ── Tab 3: Articles ──────────────────────────────────
+                ArticlesView()
+                    .tabItem {
+                        Label("Articles", systemImage: "book.fill")
+                    }
             }
             .tint(Color(red: 0.68, green: 0.45, blue: 1.0))
             .preferredColorScheme(.dark)
