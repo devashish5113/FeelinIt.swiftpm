@@ -12,6 +12,18 @@ struct NeuralVisualizationView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
+            // Same gradient as Explore tab
+            RadialGradient(
+                colors: [Color(red: 0.06, green: 0.04, blue: 0.14),
+                         Color(red: 0.02, green: 0.02, blue: 0.06)],
+                center: .center, startRadius: 0, endRadius: 500
+            )
+            .ignoresSafeArea()
+
+            // Star background — same component used in JourneyView
+            StarField()
+                .ignoresSafeArea()
+
             // 3D Neural Sphere
             NeuralSceneView(manager: sceneManager)
                 .ignoresSafeArea()

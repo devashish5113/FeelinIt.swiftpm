@@ -38,7 +38,7 @@ final class NeuralSceneManager: ObservableObject {
     }
 
     private func setupScene() {
-        scene.background.contents = UIColor.black
+        scene.background.contents = UIColor.clear
         let amb = SCNNode(); amb.light = SCNLight()
         amb.light?.type = .ambient; amb.light?.intensity = 40
         scene.rootNode.addChildNode(amb)
@@ -1059,7 +1059,7 @@ struct NeuralSceneView: UIViewRepresentable {
     @MainActor func makeUIView(context: Context) -> SCNView {
         let v = SCNView()
         v.scene = manager.scene; v.allowsCameraControl = true
-        v.autoenablesDefaultLighting = false; v.backgroundColor = .black
+        v.autoenablesDefaultLighting = false; v.backgroundColor = .clear
         v.antialiasingMode = .multisampling4X
         if manager.scene.rootNode.childNode(withName: "mainCam", recursively: false) == nil {
             let cam = SCNCamera(); cam.fieldOfView = 65
