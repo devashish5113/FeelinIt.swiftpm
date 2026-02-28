@@ -1,14 +1,6 @@
 import SceneKit
 import SwiftUI
 
-// MARK: - NeuralSceneManager
-//
-// 3000 pts split into 8 independent point-cloud groups.
-// Each emotion gives each group a distinct SCNAction pattern:
-//   Calm    → slow synchronized wave, small gentle displacement
-//   Anxiety → chaotic rapid multi-freq jitter, large amplitude, opacity flashes
-//   Sadness → most groups dim/frozen, minimal motion
-//   Love    → rhythmic cascade wave, warm secondary color flashes
 
 @MainActor
 final class NeuralSceneManager: ObservableObject {
@@ -46,7 +38,6 @@ final class NeuralSceneManager: ObservableObject {
         sphereRoot.addChildNode(impulseRoot)   // rotates with neuron
     }
 
-    // MARK: - Background Build
 
     nonisolated private func asyncBuild() async {
         let skeleton       = Self.neuronSkeleton()
@@ -77,7 +68,6 @@ final class NeuralSceneManager: ObservableObject {
         }
     }
 
-    // MARK: - Group Setup
 
     private func buildGroups(_ groups: [[SCNVector3]]) {
         cloudGroups.forEach { $0.removeFromParentNode() }
@@ -105,7 +95,6 @@ final class NeuralSceneManager: ObservableObject {
         return SCNNode(geometry: geo)
     }
 
-    // MARK: - Update
 
     func update(parameters: EmotionParameters) {
         guard !isRestoring else {

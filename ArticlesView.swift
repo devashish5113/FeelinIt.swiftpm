@@ -1,6 +1,5 @@
 import SwiftUI
-
-// MARK: - Articles Tab
+import AVFoundation
 
 struct ArticlesView: View {
     @State private var selectedArticle: EmotionArticle? = nil
@@ -51,15 +50,12 @@ struct ArticlesView: View {
     }
 }
 
-// MARK: - Per-emotion Section
-
 private struct EmotionArticleSection: View {
     let emotion: Emotion
     let onSelect: (EmotionArticle) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Section heading — aligned with nav large title (16pt inset)
             Text("About \(emotion.rawValue)")
                 .font(.system(size: 20, weight: .bold))
                 .foregroundStyle(.white)
@@ -78,8 +74,6 @@ private struct EmotionArticleSection: View {
     }
 }
 
-// MARK: - Browse Card (light, Health-app style)
-
 struct ArticleBrowseCard: View {
     let article: EmotionArticle
     let accentColor: Color
@@ -88,8 +82,6 @@ struct ArticleBrowseCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
-
-                // ── Thumbnail ─────────────────────────────────────────────
                 ZStack {
                     LinearGradient(
                         colors: [accentColor.opacity(0.70), accentColor.opacity(0.30)],
@@ -109,7 +101,6 @@ struct ArticleBrowseCard: View {
                 .frame(height: 190)
                 .clipped()
 
-                // ── Text ──────────────────────────────────────────────────
                 VStack(alignment: .leading, spacing: 5) {
                     Text(article.title)
                         .font(.system(size: 17, weight: .bold))
@@ -151,10 +142,6 @@ struct ArticleBrowseCard: View {
     }
 }
 
-import AVFoundation
-
-// MARK: - Article Full-Screen Reader Sheet
-
 struct ArticleDetailSheet: View {
     let article: EmotionArticle
     let accentColor: Color
@@ -166,8 +153,6 @@ struct ArticleDetailSheet: View {
             ZStack(alignment: .bottomTrailing) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-
-                        // Hero thumbnail
                         GeometryReader { geo in
                             ZStack {
                                 LinearGradient(
@@ -190,7 +175,6 @@ struct ArticleDetailSheet: View {
                         }
                         .frame(height: 240)
 
-                        // Article body
                         VStack(alignment: .leading, spacing: 22) {
                             Text(article.title)
                                 .font(.system(size: 24, weight: .bold))
@@ -213,7 +197,6 @@ struct ArticleDetailSheet: View {
                                 }
                             }
 
-                            // Source attribution
                             HStack(spacing: 5) {
                                 Image(systemName: "link")
                                     .font(.system(size: 11))
@@ -234,7 +217,6 @@ struct ArticleDetailSheet: View {
                 }
                 .ignoresSafeArea(edges: .top)
 
-                // Floating speaker button
                 Button {
                     if speaker.isSpeaking {
                         speaker.stop()
@@ -304,8 +286,6 @@ struct ArticleDetailSheet: View {
     }
 }
 
-// MARK: - Article Speaker (AVSpeechSynthesizer wrapper)
-
 final class ArticleSpeaker: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     @Published var isSpeaking = false
     private let synthesizer = AVSpeechSynthesizer()
@@ -313,7 +293,6 @@ final class ArticleSpeaker: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
     override init() {
         super.init()
         synthesizer.delegate = self
-        // Pre-load voice engine off the main thread so sheet opens instantly
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try? AVAudioSession.sharedInstance().setActive(true)

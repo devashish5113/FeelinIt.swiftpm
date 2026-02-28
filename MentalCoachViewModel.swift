@@ -3,8 +3,6 @@ import SwiftUI
 import FoundationModels
 #endif
 
-// MARK: - Chat Message Model
-
 struct ChatMessage: Identifiable, Equatable {
     let id = UUID()
     let role: Role
@@ -21,8 +19,6 @@ struct ChatMessage: Identifiable, Equatable {
         ChatMessage(role: .assistant, content: text, options: options)
     }
 }
-
-// MARK: - View Model
 
 @available(iOS 26, *)
 @MainActor
@@ -56,7 +52,6 @@ final class MentalCoachViewModel: ObservableObject {
 
     init() {}
 
-    // MARK: Send
     func send(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -66,11 +61,9 @@ final class MentalCoachViewModel: ObservableObject {
     }
 
     func selectOption(_ option: String) {
-        // Remove all options from the message that offered them
         if let lastAssistantIndex = messages.lastIndex(where: { $0.role == .assistant }) {
             messages[lastAssistantIndex].options = []
         }
-        // Place option text in the input field so user can edit/complete it
         inputText = option
     }
 
@@ -85,7 +78,6 @@ final class MentalCoachViewModel: ObservableObject {
         #endif
     }
 
-    // MARK: Response generation
     private func generateResponse(for prompt: String) async {
         isResponding = true
         messages.append(.assistant(""))
@@ -107,7 +99,6 @@ final class MentalCoachViewModel: ObservableObject {
         messages[index].content = "Foundation Models is not available on this device."
         #endif
 
-        // Parse numbered options from the response
         guard !Task.isCancelled, index < messages.count else { return }
         let parsed = parseOptions(from: messages[index].content)
         messages[index].content = parsed.body
@@ -115,7 +106,6 @@ final class MentalCoachViewModel: ObservableObject {
         isResponding = false
     }
 
-    // MARK: Option parsing
     private func parseOptions(from text: String) -> (body: String, options: [String]) {
         let lines = text.components(separatedBy: "\n")
         var bodyLines: [String] = []

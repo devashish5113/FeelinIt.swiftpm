@@ -1,9 +1,6 @@
 import SwiftUI
 
-// MARK: - RoundedHexagonShape
 
-/// Pointy-top hexagon with rounded corners via quadratic bezier curves at each vertex.
-/// Natural aspect ratio: h/w = 2/√3 ≈ 1.1547
 struct RoundedHexagonShape: Shape {
     var cornerRadius: CGFloat = 14
 
@@ -47,16 +44,14 @@ struct RoundedHexagonShape: Shape {
     }
 }
 
-// MARK: - EmotionSelectionView
+
 
 struct EmotionSelectionView: View {
     @ObservedObject var viewModel: EmotionViewModel
     @State private var appeared = false
     @State private var selectedForAnim: Emotion? = nil
 
-    //        [calm]   [anxiety]
-    //  [angry]  [● center]  [sadness]
-    //        [happy]  [love]
+
     private let ringEmotions: [(emotion: Emotion, idx: Int)] = [
         (.calm,    0), (.anxiety, 1), (.sadness, 2),
         (.love,    3), (.happy,   4), (.angry,   5),
@@ -79,13 +74,9 @@ struct EmotionSelectionView: View {
         .onAppear { appeared = true }
     }
 
-    // MARK: Background (kept for reference, no longer used)
-    private var background: some View {
-        Color(red: 0.03, green: 0.02, blue: 0.08)
-            .ignoresSafeArea()
-    }
 
-    // MARK: Header — FeelinIt label + big title + subtitle, tightly stacked
+
+
     private var header: some View {
         VStack(spacing: 8) {
             Text("FeelinIt")
@@ -110,7 +101,7 @@ struct EmotionSelectionView: View {
         .animation(.easeOut(duration: 0.65), value: appeared)
     }
 
-    // MARK: Full layout — VStack with Spacers centres everything naturally
+
     private func contentLayout(geo: GeometryProxy) -> some View {
         let margin = CGFloat(24)
         let hGap   = CGFloat(10)
@@ -187,7 +178,7 @@ struct EmotionSelectionView: View {
     }
 }
 
-// MARK: - Neural Center Badge (decorative, no text)
+
 
 struct NeuralCenterBadge: View {
     @State private var pulse  = false
@@ -244,7 +235,7 @@ struct NeuralCenterBadge: View {
     }
 }
 
-// MARK: - Emotion Card
+
 
 struct EmotionCard: View {
     let emotion: Emotion
@@ -306,7 +297,7 @@ struct EmotionCard: View {
     }
 }
 
-// MARK: - Floating Orbs
+
 
 struct FloatingOrbs: View {
     @State private var animate = false

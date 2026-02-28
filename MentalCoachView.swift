@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Floating Action Button + Chat Sheet
-
 @available(iOS 26, *)
 struct MentalCoachFAB: View {
     @StateObject private var vm = MentalCoachViewModel()
@@ -56,8 +54,6 @@ struct MentalCoachFAB: View {
     }
 }
 
-// MARK: - Chat View
-
 @available(iOS 26, *)
 struct MentalCoachChatView: View {
     @ObservedObject var vm: MentalCoachViewModel
@@ -67,11 +63,9 @@ struct MentalCoachChatView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Messages
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 14) {
-                            // Welcome message if empty
                             if vm.messages.isEmpty {
                                 welcomeCard
                                     .padding(.top, 20)
@@ -82,7 +76,6 @@ struct MentalCoachChatView: View {
                                     .id(msg.id)
                             }
 
-                            // Typing indicator
                             if vm.isResponding {
                                 typingIndicator
                                     .id("typing")
@@ -108,8 +101,6 @@ struct MentalCoachChatView: View {
                 }
 
                 Divider()
-
-                // Input bar
                 inputBar
             }
             .background(Color(red: 0.06, green: 0.04, blue: 0.12))
@@ -138,8 +129,6 @@ struct MentalCoachChatView: View {
         }
     }
 
-    // MARK: - Welcome Card
-
     private var welcomeCard: some View {
         VStack(spacing: 14) {
             Image(systemName: "stethoscope")
@@ -161,7 +150,6 @@ struct MentalCoachChatView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 260)
 
-            // Quick-start options
             VStack(spacing: 8) {
                 quickStartButton("I'm feeling anxious today", icon: "bolt.heart")
                 quickStartButton("I need help calming down", icon: "leaf")
@@ -199,8 +187,6 @@ struct MentalCoachChatView: View {
         }
     }
 
-    // MARK: - Message Bubble
-
     @ViewBuilder
     private func messageBubble(_ msg: ChatMessage) -> some View {
         VStack(alignment: msg.role == .user ? .trailing : .leading, spacing: 8) {
@@ -226,7 +212,6 @@ struct MentalCoachChatView: View {
                 if msg.role == .assistant { Spacer(minLength: 40) }
             }
 
-            // Option buttons
             if !msg.options.isEmpty && !vm.isResponding {
                 VStack(spacing: 6) {
                     ForEach(msg.options, id: \.self) { option in
@@ -262,8 +247,6 @@ struct MentalCoachChatView: View {
         .frame(maxWidth: .infinity, alignment: msg.role == .user ? .trailing : .leading)
     }
 
-    // MARK: - Typing Indicator
-
     private var typingIndicator: some View {
         HStack(spacing: 5) {
             ForEach(0..<3) { i in
@@ -285,8 +268,6 @@ struct MentalCoachChatView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-
-    // MARK: - Input Bar
 
     private var inputBar: some View {
         HStack(spacing: 10) {
