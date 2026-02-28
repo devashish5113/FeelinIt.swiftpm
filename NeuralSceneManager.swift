@@ -191,10 +191,11 @@ final class NeuralSceneManager: ObservableObject {
 
             // Gentle brightening pulse near the end
             let brighten = SCNAction.customAction(duration: 2.5) { nd, t in
+                guard let mat = nd.geometry?.firstMaterial else { return }
                 let prog = Float(t / 2.5)
                 let brightness = 0.45 + 0.35 * prog   // 0.45 → 0.80
                 let c = UIColor(white: CGFloat(brightness), alpha: 1)
-                nd.geometry?.firstMaterial?.emission.contents = c
+                mat.emission.contents = c
             }
 
             let waitThenSettle = SCNAction.sequence([
@@ -338,10 +339,10 @@ final class NeuralSceneManager: ObservableObject {
             let priC = p.primaryUIColor
             let glowLo = Float(0.55); let glowHi = Float(0.85)
             let glowBreath = SCNAction.repeatForever(SCNAction.customAction(duration: speed * 2) { [weak self] nd, t in
-                guard let self else { return }
+                guard let self, let mat = nd.geometry?.firstMaterial else { return }
                 let tf   = Float(t / speed)
                 let bright = glowLo + (glowHi - glowLo) * (0.5 + 0.5 * sin(tf * 2 * .pi + phase))
-                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: priC, intensity: bright)
+                mat.emission.contents = self.cloudGlowColor(from: priC, intensity: bright)
             })
             node.runAction(glowBreath, forKey: "glow")
 
@@ -380,13 +381,13 @@ final class NeuralSceneManager: ObservableObject {
             let priC2 = p.primaryUIColor
             let spikeFreq = freqA * 0.18   // slow down to visible glow-flicker range
             let glowSpike = SCNAction.repeatForever(SCNAction.customAction(duration: 100) { [weak self] nd, t in
-                guard let self else { return }
+                guard let self, let mat = nd.geometry?.firstMaterial else { return }
                 let tf = Float(t)
                 // Two overlapping sin waves create irregular spiking pattern
                 let raw = 0.70 + 0.30 * sin(tf * spikeFreq + phase)
                             + 0.15 * sin(tf * spikeFreq * 2.7 + phase * 1.3)
                 let bright = max(0.4, min(1.4, raw))   // clamp; >1.0 → white-hot
-                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: priC2, intensity: Float(bright))
+                mat.emission.contents = self.cloudGlowColor(from: priC2, intensity: Float(bright))
             })
             node.runAction(glowSpike, forKey: "glow")
 
@@ -418,10 +419,10 @@ final class NeuralSceneManager: ObservableObject {
             let dimHi = Float(0.32) + fi * 0.020
             let slowCycle = p.pulseSpeed * 1.8
             let glowDim = SCNAction.repeatForever(SCNAction.customAction(duration: slowCycle) { [weak self] nd, t in
-                guard let self else { return }
+                guard let self, let mat = nd.geometry?.firstMaterial else { return }
                 let tf = Float(t / slowCycle)
                 let bright = dimLo + (dimHi - dimLo) * (0.5 + 0.5 * sin(tf * 2 * .pi + phase))
-                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: priC3, intensity: bright)
+                mat.emission.contents = self.cloudGlowColor(from: priC3, intensity: bright)
             })
             node.runAction(glowDim, forKey: "glow")
 
@@ -445,7 +446,7 @@ final class NeuralSceneManager: ObservableObject {
             let secC4  = p.secondaryUIColor
             let glowLo4 = Float(0.65); let glowHi4 = Float(1.10)
             let unified = SCNAction.repeatForever(SCNAction.customAction(duration: p.pulseSpeed) { [weak self] nd, t in
-                guard let self else { return }
+                guard let self, let mat = nd.geometry?.firstMaterial else { return }
                 let tf     = Float(t / p.pulseSpeed)
                 let bright = glowLo4 + (glowHi4 - glowLo4) * (0.5 + 0.5 * sin(tf * 2 * .pi + phase))
                 let hueBlend = CGFloat(0.5 + 0.5 * sin(tf * 2 * .pi + phase))
@@ -456,7 +457,7 @@ final class NeuralSceneManager: ObservableObject {
                 let blended = UIColor(red: pr + (sr - pr) * hueBlend,
                                      green: pg + (sg - pg) * hueBlend,
                                      blue: pb + (sb - pb) * hueBlend, alpha: 1)
-                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: blended, intensity: bright)
+                mat.emission.contents = self.cloudGlowColor(from: blended, intensity: bright)
             })
             let glowSeq = SCNAction.sequence([.wait(duration: delay), .repeatForever(unified)])
             node.runAction(glowSeq, forKey: "glow")
@@ -511,14 +512,14 @@ final class NeuralSceneManager: ObservableObject {
             p.secondaryUIColor.getRed(&sr, green: &sg, blue: &sb, alpha: &sa)
             let hLo = Float(0.70); let hHi = Float(1.05)
             let happyGlow = SCNAction.repeatForever(SCNAction.customAction(duration: p.pulseSpeed) { [weak self] nd, t in
-                guard let self else { return }
+                guard let self, let mat = nd.geometry?.firstMaterial else { return }
                 let tf = Float(t / p.pulseSpeed)
                 let bright     = hLo + (hHi - hLo) * (0.5 + 0.5 * sin(tf * 2 * .pi + phase))
                 let hueBlend   = CGFloat(max(0, sin(tf * 2 * .pi + phase)))   // 0→1 drives warm→amber
                 let blended = UIColor(red: pr + (sr - pr) * hueBlend,
                                      green: pg + (sg - pg) * hueBlend,
                                      blue: pb + (sb - pb) * hueBlend, alpha: 1)
-                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: blended, intensity: bright)
+                mat.emission.contents = self.cloudGlowColor(from: blended, intensity: bright)
             })
             node.runAction(.sequence([.wait(duration: happyDelay), .repeatForever(happyGlow)]), forKey: "glow")
 
@@ -562,7 +563,7 @@ final class NeuralSceneManager: ObservableObject {
             let secCA  = p.secondaryUIColor  // red-orange
             let aLo = Float(0.65); let aHi = Float(1.35)  // >1 → overblown red-white
             let angryGlow = SCNAction.repeatForever(SCNAction.customAction(duration: p.pulseSpeed) { [weak self] nd, t in
-                guard let self else { return }
+                guard let self, let mat = nd.geometry?.firstMaterial else { return }
                 let tf = Float(t / p.pulseSpeed)
                 // Fast-attack waveform mirrors the strike motion
                 let rawSin = 0.5 + 0.5 * sin(tf * 2 * .pi + phase)
@@ -577,7 +578,7 @@ final class NeuralSceneManager: ObservableObject {
                 let blended = UIColor(red: pr + (sr - pr) * hueBlend * 0.4,
                                      green: pg + (sg - pg) * hueBlend * 0.4,
                                      blue: pb + (sb - pb) * hueBlend * 0.2, alpha: 1)
-                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: blended, intensity: bright)
+                mat.emission.contents = self.cloudGlowColor(from: blended, intensity: bright)
             })
             node.runAction(angryGlow, forKey: "glow")
         }
