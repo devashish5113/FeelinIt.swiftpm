@@ -7,6 +7,7 @@ struct MentalCoachFAB: View {
     @StateObject private var vm = MentalCoachViewModel()
     @State private var showChat = false
     @State private var pulse = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button {
@@ -41,7 +42,10 @@ struct MentalCoachFAB: View {
             }
             .opacity(0.80)
         }
+        .accessibilityLabel("Dr. Feel, your AI wellness coach")
+        .accessibilityHint("Double tap to start a conversation")
         .onAppear {
+            guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
                 pulse = true
             }

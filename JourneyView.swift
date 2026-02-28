@@ -384,12 +384,12 @@ struct ConstellationCanvas: View {
     let exploredSlots: Set<Int>
     let particles: [LineParticle]
     let geo: GeometryProxy
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation) { tl in
+        if reduceMotion {
+            // Static version — no animation loop
             Canvas { ctx, size in
-                let t = tl.date.timeIntervalSince1970
-
                 for (a, b) in layout.lines {
                     let pa = pos(a, size: size)
                     let pb = pos(b, size: size)
@@ -400,17 +400,41 @@ struct ConstellationCanvas: View {
                                with: .color(.white.opacity(lit ? 0.20 : 0.05)),
                                style: StrokeStyle(lineWidth: 1, dash: [5, 7]))
                 }
-
                 for p in particles {
-                    let dx = sin(t * p.freq + p.phase) * 3.5
-                    let dy = cos(t * p.freq * 0.8 + p.phase + 1) * 3.5
-                    let pt = CGPoint(x: p.base.x + dx, y: p.base.y + dy)
-                    let a  = p.alpha * (0.65 + 0.35 * sin(t * p.freq * 1.3 + p.phase))
                     ctx.fill(
-                        Path(ellipseIn: CGRect(x: pt.x - p.size/2, y: pt.y - p.size/2,
+                        Path(ellipseIn: CGRect(x: p.base.x - p.size/2, y: p.base.y - p.size/2,
                                               width: p.size, height: p.size)),
-                        with: .color(.white.opacity(a))
+                        with: .color(.white.opacity(p.alpha * 0.7))
                     )
+                }
+            }
+        } else {
+            TimelineView(.animation) { tl in
+                Canvas { ctx, size in
+                    let t = tl.date.timeIntervalSince1970
+
+                    for (a, b) in layout.lines {
+                        let pa = pos(a, size: size)
+                        let pb = pos(b, size: size)
+                        let lit = exploredSlots.contains(a) && exploredSlots.contains(b)
+                        var path = Path()
+                        path.move(to: pa); path.addLine(to: pb)
+                        ctx.stroke(path,
+                                   with: .color(.white.opacity(lit ? 0.20 : 0.05)),
+                                   style: StrokeStyle(lineWidth: 1, dash: [5, 7]))
+                    }
+
+                    for p in particles {
+                        let dx = sin(t * p.freq + p.phase) * 3.5
+                        let dy = cos(t * p.freq * 0.8 + p.phase + 1) * 3.5
+                        let pt = CGPoint(x: p.base.x + dx, y: p.base.y + dy)
+                        let a  = p.alpha * (0.65 + 0.35 * sin(t * p.freq * 1.3 + p.phase))
+                        ctx.fill(
+                            Path(ellipseIn: CGRect(x: pt.x - p.size/2, y: pt.y - p.size/2,
+                                                  width: p.size, height: p.size)),
+                            with: .color(.white.opacity(a))
+                        )
+                    }
                 }
             }
         }
@@ -883,6 +907,8 @@ struct StarField: View {
                     dur: rng(4) * 3 + 2)
     }
     @State private var on = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         GeometryReader { geo in
             ForEach(stars) { s in
@@ -890,7 +916,7 @@ struct StarField: View {
                     .fill(.white.opacity(on ? s.opacity : s.opacity * 0.35))
                     .frame(width: s.size, height: s.size)
                     .position(x: geo.size.width * s.x, y: geo.size.height * s.y)
-                    .animation(.easeInOut(duration: s.dur).repeatForever(autoreverses: true)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: s.dur).repeatForever(autoreverses: true)
                                 .delay(s.dur * 0.4), value: on)
             }
         }

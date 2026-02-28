@@ -35,7 +35,9 @@ final class MentalCoachViewModel: ObservableObject {
     private var responseTask: Task<Void, Never>?
 
     #if canImport(FoundationModels)
-    private var session: LanguageModelSession
+    private lazy var session: LanguageModelSession = {
+        LanguageModelSession(instructions: Self.systemInstruction)
+    }()
 
     private static let systemInstruction = """
     You are a warm, compassionate mental wellness coach inside an app called FeelinIt. \
@@ -50,13 +52,9 @@ final class MentalCoachViewModel: ObservableObject {
     Never diagnose or prescribe medication. If the user expresses thoughts of self-harm, \
     gently encourage them to contact a crisis helpline.
     """
-
-    init() {
-        session = LanguageModelSession(instructions: Self.systemInstruction)
-    }
-    #else
-    init() {}
     #endif
+
+    init() {}
 
     // MARK: Send
     func send(_ text: String) {

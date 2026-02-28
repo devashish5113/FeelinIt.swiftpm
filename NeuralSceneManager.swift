@@ -515,18 +515,17 @@ final class NeuralSceneManager: ObservableObject {
             // ── Glow: bright cascading amber warmth ──
             // Rides 0.70→1.05 with upward phase, so brightness peaks match the upward motion.
             // Groups cascade so the whole neuron "lights up" progressively.
-            let priCH  = p.primaryUIColor
-            let secCH  = p.secondaryUIColor
+            // Extract color components up-front so the closure only captures plain Floats
+            var pr: CGFloat = 0, pg: CGFloat = 0, pb: CGFloat = 0, pa: CGFloat = 0
+            var sr: CGFloat = 0, sg: CGFloat = 0, sb: CGFloat = 0, sa: CGFloat = 0
+            p.primaryUIColor.getRed(&pr, green: &pg, blue: &pb, alpha: &pa)
+            p.secondaryUIColor.getRed(&sr, green: &sg, blue: &sb, alpha: &sa)
             let hLo = Float(0.70); let hHi = Float(1.05)
             let happyGlow = SCNAction.repeatForever(SCNAction.customAction(duration: p.pulseSpeed) { [weak self] nd, t in
                 guard let self else { return }
                 let tf = Float(t / p.pulseSpeed)
                 let bright     = hLo + (hHi - hLo) * (0.5 + 0.5 * sin(tf * 2 * .pi + phase))
                 let hueBlend   = CGFloat(max(0, sin(tf * 2 * .pi + phase)))   // 0→1 drives warm→amber
-                var pr: CGFloat = 0, pg: CGFloat = 0, pb: CGFloat = 0, pa: CGFloat = 0
-                var sr: CGFloat = 0, sg: CGFloat = 0, sb: CGFloat = 0
-                priCH.getRed(&pr, green: &pg, blue: &pb, alpha: &pa)
-                secCH.getRed(&sr, green: &sg, blue: &sb, alpha: &pa)
                 let blended = UIColor(red: pr + (sr - pr) * hueBlend,
                                      green: pg + (sg - pg) * hueBlend,
                                      blue: pb + (sb - pb) * hueBlend, alpha: 1)

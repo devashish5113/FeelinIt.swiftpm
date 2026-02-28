@@ -193,6 +193,7 @@ struct NeuralCenterBadge: View {
     @State private var pulse  = false
     @State private var rotate = false
     @State private var innerPulse = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -213,30 +214,29 @@ struct NeuralCenterBadge: View {
                 .stroke(
                     LinearGradient(
                         colors: [Color(red: 0.60, green: 0.35, blue: 1.0).opacity(0.65),
-                                 Color(red: 0.25, green: 0.10, blue: 0.65).opacity(0.25)],
+                                 Color(red: 0.35, green: 0.15, blue: 0.70).opacity(0.25)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ),
-                    lineWidth: 1
+                    lineWidth: 1.5
                 )
 
-            // Rotating dot ring
-            ZStack {
-                ForEach(0..<6) { i in
-                    Circle()
-                        .fill(Color(red: 0.68, green: 0.45, blue: 1.0)
-                            .opacity(innerPulse ? 0.9 : 0.5))
-                        .frame(width: 4.5, height: 4.5)
-                        .offset(y: -16)
-                        .rotationEffect(.degrees(Double(i) * 60 + (rotate ? 360 : 0)))
-                }
-                // Center dot
+            // Orbiting dots
+            ForEach(0..<6) { i in
                 Circle()
-                    .fill(Color(red: 0.75, green: 0.50, blue: 1.0))
-                    .frame(width: 8, height: 8)
-                    .scaleEffect(innerPulse ? 1.25 : 0.85)
+                    .fill(Color(red: 0.68, green: 0.45, blue: 1.0)
+                        .opacity(innerPulse ? 0.9 : 0.5))
+                    .frame(width: 4.5, height: 4.5)
+                    .offset(y: -16)
+                    .rotationEffect(.degrees(Double(i) * 60 + (rotate ? 360 : 0)))
             }
+            // Center dot
+            Circle()
+                .fill(Color(red: 0.75, green: 0.50, blue: 1.0))
+                .frame(width: 8, height: 8)
+                .scaleEffect(innerPulse ? 1.25 : 0.85)
         }
         .onAppear {
+            guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) { pulse = true }
             withAnimation(.linear(duration: 9).repeatForever(autoreverses: false)) { rotate = true }
             withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) { innerPulse = true }
@@ -253,18 +253,22 @@ struct EmotionCard: View {
 
     @State private var isPressed = false
     @State private var pulse = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
             cardContent
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(emotion.rawValue)
+        .accessibilityHint("Double tap to explore \(emotion.rawValue)")
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in withAnimation(.easeIn(duration: 0.1)) { isPressed = true } }
                 .onEnded   { _ in withAnimation(.spring())              { isPressed = false } }
         )
         .onAppear {
+            guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 1.6 + Double.random(in: 0...0.6))
                             .repeatForever(autoreverses: true)) { pulse = true }
         }

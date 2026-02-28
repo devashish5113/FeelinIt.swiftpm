@@ -64,6 +64,7 @@ private struct EmotionArticleSection: View {
                 .font(.system(size: 20, weight: .bold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 16)
+                .accessibilityAddTraits(.isHeader)
 
             ForEach(emotion.articles) { article in
                 ArticleBrowseCard(
@@ -131,6 +132,10 @@ struct ArticleBrowseCard: View {
         .background(Color(white: 0.13))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: .black.opacity(0.25), radius: 10, x: 0, y: 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(article.title). \(article.subtitle)")
+        .accessibilityHint("Double tap to read full article")
+        .accessibilityAddTraits(.isButton)
     }
 
     private var placeholderIcon: String {
@@ -146,96 +151,144 @@ struct ArticleBrowseCard: View {
     }
 }
 
+import AVFoundation
+
 // MARK: - Article Full-Screen Reader Sheet
 
 struct ArticleDetailSheet: View {
     let article: EmotionArticle
     let accentColor: Color
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var speaker = ArticleSpeaker()
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                // frame(maxWidth: .infinity) gives the column a definite width
-                // so all child Text views know their wrapping boundary.
-                VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .bottomTrailing) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
 
-                    // Hero thumbnail — GeometryReader ensures image layout
-                    // never exceeds screen width regardless of aspect ratio
-                    GeometryReader { geo in
-                        ZStack {
-                            LinearGradient(
-                                colors: [accentColor.opacity(0.65), accentColor.opacity(0.25)],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            )
-                            if let uiImg = UIImage(named: article.thumbnailName) {
-                                Image(uiImage: uiImg)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: geo.size.width, height: 240)
-                                    .clipped()
-                            } else {
-                                Image(systemName: heroIcon)
-                                    .font(.system(size: 80, weight: .ultraLight))
-                                    .foregroundStyle(.white.opacity(0.35))
+                        // Hero thumbnail
+                        GeometryReader { geo in
+                            ZStack {
+                                LinearGradient(
+                                    colors: [accentColor.opacity(0.65), accentColor.opacity(0.25)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                )
+                                if let uiImg = UIImage(named: article.thumbnailName) {
+                                    Image(uiImage: uiImg)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: geo.size.width, height: 240)
+                                        .clipped()
+                                } else {
+                                    Image(systemName: heroIcon)
+                                        .font(.system(size: 80, weight: .ultraLight))
+                                        .foregroundStyle(.white.opacity(0.35))
+                                }
                             }
+                            .frame(width: geo.size.width, height: 240)
                         }
-                        .frame(width: geo.size.width, height: 240)
-                    }
-                    .frame(height: 240)
+                        .frame(height: 240)
 
-                    // Article body — 24pt breathing room on both sides
-                    VStack(alignment: .leading, spacing: 22) {
-                        Text(article.title)
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(Color(.label))
-                            .multilineTextAlignment(.leading)
+                        // Article body
+                        VStack(alignment: .leading, spacing: 22) {
+                            Text(article.title)
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundStyle(Color(.label))
+                                .multilineTextAlignment(.leading)
 
-                        ForEach(article.sections) { section in
-                            VStack(alignment: .leading, spacing: 8) {
-                                if !section.heading.isEmpty {
-                                    Text(section.heading)
-                                        .font(.system(size: 17, weight: .semibold))
-                                        .foregroundStyle(Color(.label))
+                            ForEach(article.sections) { section in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    if !section.heading.isEmpty {
+                                        Text(section.heading)
+                                            .font(.system(size: 17, weight: .semibold))
+                                            .foregroundStyle(Color(.label))
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                    Text(section.body)
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(Color(.secondaryLabel))
+                                        .lineSpacing(6)
                                         .multilineTextAlignment(.leading)
                                 }
-                                Text(section.body)
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(Color(.secondaryLabel))
-                                    .lineSpacing(6)
+                            }
+
+                            // Source attribution
+                            HStack(spacing: 5) {
+                                Image(systemName: "link")
+                                    .font(.system(size: 11))
+                                Text("Source: \(article.source)")
+                                    .font(.system(size: 12))
                                     .multilineTextAlignment(.leading)
                             }
+                            .foregroundStyle(Color(.tertiaryLabel))
+                            .padding(.top, 8)
                         }
-
-                        // Source attribution
-                        HStack(spacing: 5) {
-                            Image(systemName: "link")
-                                .font(.system(size: 11))
-                            Text("Source: \(article.source)")
-                                .font(.system(size: 12))
-                                .multilineTextAlignment(.leading)
-                        }
-                        .foregroundStyle(Color(.tertiaryLabel))
-                        .padding(.top, 8)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 24)
+                        .padding(.bottom, 48)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.systemBackground))
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 24)
-                    .padding(.bottom, 48)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.systemBackground))
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)   // ← key: constrains text width
+                .ignoresSafeArea(edges: .top)
+
+                // Floating speaker button
+                Button {
+                    if speaker.isSpeaking {
+                        speaker.stop()
+                    } else {
+                        speaker.speak(article: article)
+                    }
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color(red: 0.30, green: 0.10, blue: 0.65),
+                                             Color(red: 0.50, green: 0.18, blue: 0.80)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                )
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [Color(red: 0.75, green: 0.55, blue: 1.0),
+                                                     Color(red: 0.90, green: 0.50, blue: 0.85)],
+                                            startPoint: .top, endPoint: .bottom
+                                        ),
+                                        lineWidth: 2
+                                    )
+                            )
+                            .frame(width: 56, height: 56)
+                            .shadow(color: .purple.opacity(0.45), radius: 8, x: 0, y: 4)
+
+                        Image(systemName: speaker.isSpeaking ? "stop.circle.fill" : "speaker.wave.2.fill")
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundStyle(.white)
+                    }
+                    .opacity(0.80)
+                }
+                .accessibilityLabel(speaker.isSpeaking ? "Stop reading" : "Read article aloud")
+                .accessibilityHint(speaker.isSpeaking ? "Double tap to stop" : "Double tap to hear this article")
+                .padding(.trailing, 20)
+                .padding(.bottom, 24)
             }
-            .ignoresSafeArea(edges: .top)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .fontWeight(.semibold)
-                        .foregroundStyle(accentColor)
+                    Button("Done") {
+                        speaker.stop()
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(accentColor)
                 }
             }
         }
+        .onDisappear { speaker.stop() }
     }
 
     private var heroIcon: String {
@@ -251,3 +304,48 @@ struct ArticleDetailSheet: View {
     }
 }
 
+// MARK: - Article Speaker (AVSpeechSynthesizer wrapper)
+
+final class ArticleSpeaker: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
+    @Published var isSpeaking = false
+    private let synthesizer = AVSpeechSynthesizer()
+
+    override init() {
+        super.init()
+        synthesizer.delegate = self
+        // Pre-load voice engine off the main thread so sheet opens instantly
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try? AVAudioSession.sharedInstance().setActive(true)
+            DispatchQueue.main.async {
+                let warmup = AVSpeechUtterance(string: " ")
+                warmup.volume = 0
+                self?.synthesizer.speak(warmup)
+            }
+        }
+    }
+
+    func speak(article: EmotionArticle) {
+        stop()
+        var text = article.title + ". "
+        for section in article.sections {
+            if !section.heading.isEmpty { text += section.heading + ". " }
+            text += section.body + " "
+        }
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.92
+        utterance.pitchMultiplier = 1.05
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        synthesizer.speak(utterance)
+        isSpeaking = true
+    }
+
+    func stop() {
+        synthesizer.stopSpeaking(at: .immediate)
+        isSpeaking = false
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        DispatchQueue.main.async { self.isSpeaking = false }
+    }
+}
