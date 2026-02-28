@@ -64,7 +64,13 @@ struct EmotionSelectionView: View {
 
     var body: some View {
         ZStack {
-            background
+            RadialGradient(
+                colors: [Color(red: 0.06, green: 0.04, blue: 0.14),
+                         Color(red: 0.02, green: 0.02, blue: 0.06)],
+                center: .center, startRadius: 0, endRadius: 500
+            )
+            .ignoresSafeArea()
+            StarField()
             FloatingOrbs()
             GeometryReader { geo in
                 contentLayout(geo: geo)
@@ -73,14 +79,10 @@ struct EmotionSelectionView: View {
         .onAppear { appeared = true }
     }
 
-    // MARK: Background
+    // MARK: Background (kept for reference, no longer used)
     private var background: some View {
-        RadialGradient(
-            colors: [Color(red: 0.06, green: 0.04, blue: 0.14),
-                     Color(red: 0.02, green: 0.02, blue: 0.06)],
-            center: .center, startRadius: 0, endRadius: 500
-        )
-        .ignoresSafeArea()
+        Color(red: 0.03, green: 0.02, blue: 0.08)
+            .ignoresSafeArea()
     }
 
     // MARK: Header — FeelinIt label + big title + subtitle, tightly stacked
@@ -92,7 +94,7 @@ struct EmotionSelectionView: View {
                 .kerning(4)
 
             Text("How are you\nfeeling?")
-                .font(.system(size: 44, weight: .bold, design: .rounded))
+                .font(.system(size: 38, weight: .bold, design: .rounded))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(
                     LinearGradient(colors: [.white, .white.opacity(0.75)],

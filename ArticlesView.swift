@@ -16,11 +16,25 @@ struct ArticlesView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 20)
             }
-            .background(Color(.systemBackground))
+            .scrollContentBackground(.hidden)
+            .background {
+                // Background lives INSIDE NavigationView — the only way to
+                // reliably show through its opaque container
+                ZStack {
+                    RadialGradient(
+                        colors: [Color(red: 0.06, green: 0.04, blue: 0.14),
+                                 Color(red: 0.02, green: 0.02, blue: 0.06)],
+                        center: UnitPoint(x: 0.5, y: 0.25), startRadius: 0, endRadius: 550
+                    )
+                    StarField()
+                }
+                .ignoresSafeArea()
+            }
             .navigationTitle("Articles")
             .navigationBarTitleDisplayMode(.large)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
         }
-        // Native iOS sheet — presented from the top-level tab view, no nesting issues
         .sheet(item: $selectedArticle) { article in
             ArticleDetailSheet(
                 article: article,
@@ -51,7 +65,7 @@ private struct EmotionArticleSection: View {
             // Section heading
             Text("About \(emotion.rawValue)")
                 .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Color(.label))
+                .foregroundStyle(.white)
 
             ForEach(emotion.articles) { article in
                 ArticleBrowseCard(
@@ -99,18 +113,18 @@ struct ArticleBrowseCard: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(article.title)
                         .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(Color(.label))
+                        .foregroundStyle(.white)
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
 
                     Text(article.subtitle)
                         .font(.system(size: 14))
-                        .foregroundStyle(Color(.secondaryLabel))
+                        .foregroundStyle(.white.opacity(0.55))
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
                 }
                 .padding(16)
-                .background(Color(.secondarySystemBackground))
+                .background(.white.opacity(0.06))
             }
         }
         .buttonStyle(.plain)

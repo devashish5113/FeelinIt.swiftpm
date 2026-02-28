@@ -68,7 +68,12 @@ struct JourneyView: View {
 
     var body: some View {
         ZStack {
-            Color(red: 0.03, green: 0.02, blue: 0.08).ignoresSafeArea()
+            RadialGradient(
+                colors: [Color(red: 0.06, green: 0.04, blue: 0.14),
+                         Color(red: 0.02, green: 0.02, blue: 0.06)],
+                center: UnitPoint(x: 0.5, y: 0.25), startRadius: 0, endRadius: 550
+            )
+            .ignoresSafeArea()
             StarField()
 
             GeometryReader { geo in
@@ -107,7 +112,6 @@ struct JourneyView: View {
                             .offset(x: placed ? 0 : center.x - target.x,
                                     y: placed ? 0 : center.y - target.y)
                             .scaleEffect(placed ? 1 : 0.08)
-                            // Hide the source orb once expansion begins
                             .opacity(isExpanding
                                      ? 0
                                      : (expandingSession != nil ? 0 : (placed ? 1 : 0)))
@@ -119,30 +123,32 @@ struct JourneyView: View {
                 .contentShape(Rectangle())
                 .onAppear { lineParticles = makeLineParticles(geo: geo) }
             }
+            .padding(.top, 100)   // clears the header (73pt top + ~79pt text + 10pt gap)
 
-            // Header
+            // Header — same centred 3-line format as Explore tab
             VStack {
-                VStack(spacing: 4) {
+                VStack(spacing: 8) {
                     Text(layout.name)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.35)).kerning(3)
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.35))
+                        .kerning(3)
                     Text("Journey")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .font(.system(size: 38, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                     Text("\(viewModel.sessions.count) of 6 emotions explored")
-                        .font(.system(size: 12)).foregroundStyle(.white.opacity(0.40))
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.45))
                 }
-                .padding(.top, 56)
+                .multilineTextAlignment(.center)
+                .padding(.top, 77)
                 Spacer()
             }
             .opacity(expandingSession == nil ? 1 : 0)
             .animation(.easeOut(duration: 0.3), value: expandingSession == nil)
 
-            // ── Hologram expansion overlay ─────────────────────────────────
+            // ── Hologram expansion overlay ──────────────────────────────────
             if let exp = expandingSession {
                 GeometryReader { geo in
-                    // size × 0.40 = sphere radius; height × 1.4 → radius = 0.56 × height
-                    // so sphere fills screen top-to-bottom with curved rim peeking at edges
                     EmotionOrbView(emotion: exp.emotion,
                                    size: geo.size.height * 1.4)
                         .position(isExpanded
@@ -438,19 +444,13 @@ struct SessionDetailSheet: View {
                         Text(session.formattedFullDate)
                             .font(.system(size: 12)).foregroundStyle(.white.opacity(0.45))
                     }
-                    Spacer()
-                    // Quick stat pill
-                    VStack(spacing: 2) {
-                        Image(systemName: "timer").foregroundStyle(session.emotion.color)
-                            .font(.system(size: 13))
-                        Text(session.formattedStabilizationTime)
-                            .font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
-                        Text("stabilised").font(.system(size: 9)).foregroundStyle(.white.opacity(0.45))
-                    }
-                    .padding(10)
-                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
                 }
                 .padding(.top, 8)
+
+                // ── Highlights subheading ─────────────────────────────────
+                Text("Highlights")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.white)
 
                 // ── Monthly Calendar ──────────────────────────────────────
                 sectionCard(icon: "calendar") {
