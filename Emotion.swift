@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Emotion
 
-enum Emotion: String, CaseIterable, Identifiable {
+enum Emotion: String, CaseIterable, Identifiable, Codable {
     case calm    = "Calm"
     case anxiety = "Anxiety"
     case sadness = "Sadness"

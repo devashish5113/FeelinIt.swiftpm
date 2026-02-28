@@ -3,13 +3,22 @@ import Foundation
 // MARK: - EmotionSession
 
 /// Recorded data from one completed emotion exploration + stabilization cycle.
-struct EmotionSession: Identifiable {
-    let id   = UUID()
+struct EmotionSession: Identifiable, Codable {
+    let id:                 UUID
     let emotion:            Emotion
     let date:               Date
     let stabilizationTime:  TimeInterval
     let breathingQuality:   String
     let isLogged:           Bool       // true only when user tapped "Yes" to log prompt
+
+    init(emotion: Emotion, date: Date, stabilizationTime: TimeInterval, breathingQuality: String, isLogged: Bool) {
+        self.id = UUID()
+        self.emotion = emotion
+        self.date = date
+        self.stabilizationTime = stabilizationTime
+        self.breathingQuality = breathingQuality
+        self.isLogged = isLogged
+    }
 
     var formattedStabilizationTime: String {
         let s = Int(max(0, stabilizationTime))

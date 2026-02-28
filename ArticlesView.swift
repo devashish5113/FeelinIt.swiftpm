@@ -8,18 +8,16 @@ struct ArticlesView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 32) {
+                LazyVStack(alignment: .leading, spacing: 36) {
                     ForEach(Emotion.allCases) { emotion in
                         EmotionArticleSection(emotion: emotion, onSelect: { selectedArticle = $0 })
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
             }
             .scrollContentBackground(.hidden)
             .background {
-                // Background lives INSIDE NavigationView — the only way to
-                // reliably show through its opaque container
                 ZStack {
                     RadialGradient(
                         colors: [Color(red: 0.06, green: 0.04, blue: 0.14),
@@ -43,7 +41,6 @@ struct ArticlesView: View {
         }
     }
 
-    // Map article back to its emotion colour for the detail sheet
     private func accentColor(for article: EmotionArticle) -> Color {
         for emotion in Emotion.allCases {
             if emotion.articles.contains(where: { $0.id == article.id }) {
@@ -61,11 +58,12 @@ private struct EmotionArticleSection: View {
     let onSelect: (EmotionArticle) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // Section heading
+        VStack(alignment: .leading, spacing: 12) {
+            // Section heading — aligned with nav large title (16pt inset)
             Text("About \(emotion.rawValue)")
-                .font(.system(size: 22, weight: .bold))
+                .font(.system(size: 20, weight: .bold))
                 .foregroundStyle(.white)
+                .padding(.horizontal, 16)
 
             ForEach(emotion.articles) { article in
                 ArticleBrowseCard(
@@ -73,6 +71,7 @@ private struct EmotionArticleSection: View {
                     accentColor: emotion.color,
                     onTap: { onSelect(article) }
                 )
+                .padding(.horizontal, 16)
             }
         }
     }

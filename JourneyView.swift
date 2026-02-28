@@ -160,6 +160,20 @@ struct JourneyView: View {
                 .ignoresSafeArea()
                 .zIndex(5)
             }
+
+            // ── AI Mental Coach FAB ──────────────────────────────────────
+            if #available(iOS 26, *) {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        MentalCoachFAB()
+                    }
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
+                .zIndex(10)
+            }
         }
         .sheet(item: $detailSession, onDismiss: contractOrb) { session in
             if #available(iOS 16.4, *) {

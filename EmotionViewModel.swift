@@ -42,7 +42,38 @@ final class EmotionViewModel: ObservableObject {
     private var stabilizationStartTime: Date?
     private var userWantsToLog: Bool = false
 
-    init() { startStabilizeMonitor() }
+    // MARK: - Persistence
+    private static var sessionsFileURL: URL {
+        FileManager.default
+            .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("sessions.json")
+    }
+
+    init() {
+        loadSessions()
+        startStabilizeMonitor()
+    }
+
+    // MARK: - Persistence
+
+    private func saveSessions() {
+        do {
+            let data = try JSONEncoder().encode(sessions)
+            try data.write(to: Self.sessionsFileURL, options: .atomic)
+        } catch {
+            print("Failed to save sessions: \(error)")
+        }
+    }
+
+    private func loadSessions() {
+        guard FileManager.default.fileExists(atPath: Self.sessionsFileURL.path) else { return }
+        do {
+            let data = try Data(contentsOf: Self.sessionsFileURL)
+            sessions = try JSONDecoder().decode([EmotionSession].self, from: data)
+        } catch {
+            print("Failed to load sessions: \(error)")
+        }
+    }
 
     // MARK: - Public API
 
@@ -172,6 +203,7 @@ final class EmotionViewModel: ObservableObject {
                     breathingQuality: quality,
                     isLogged: userWantsToLog
                 ))
+                saveSessions()
             }
         }
         isRegulating = true
