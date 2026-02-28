@@ -165,6 +165,8 @@ struct NeuralVisualizationView: View {
         .onAppear {
             withAnimation(.easeOut(duration: 0.6)) { appeared = true }
             sceneManager.update(parameters: viewModel.displayParameters)
+            // Start 5s caption timer now that the view is visible
+            viewModel.startCaptionTimer()
         }
         .onReceive(viewModel.$displayParameters) { params in
             sceneManager.update(parameters: params)

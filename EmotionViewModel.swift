@@ -59,9 +59,13 @@ final class EmotionViewModel: ObservableObject {
         // Breathing detection starts immediately (silent background)
         breathingManager.start()
 
-        // Camera stays OFF until user taps Restore Balance
+        // Caption timer is started by NeuralVisualizationView.onAppear
+        // so it counts from when the user can actually see the screen.
+        captionTimer?.invalidate()
+    }
 
-        // After 5s, caption fades — log prompt appears
+    /// Called by NeuralVisualizationView once the neuron view has appeared.
+    func startCaptionTimer() {
         captionTimer?.invalidate()
         captionTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in

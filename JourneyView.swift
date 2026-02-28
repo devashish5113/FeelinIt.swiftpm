@@ -447,65 +447,66 @@ struct SessionDetailSheet: View {
                 }
                 .padding(.top, 8)
 
-                // ── Highlights subheading ─────────────────────────────────
-                Text("Highlights")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white)
+                // ── Highlights + both charts (tight 10pt spacing) ─────────
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Highlights")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.white)
 
-                // ── Monthly Calendar ──────────────────────────────────────
-                sectionCard(icon: "calendar") {
-                    // Dynamic title with prev / next navigation
-                    HStack {
+                    // ── Monthly Calendar ──────────────────────────────────
+                    sectionCard(icon: "calendar") {
+                        HStack {
+                            HStack(spacing: 6) {
+                                Image(systemName: "calendar")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(session.emotion.color)
+                                Text(calendarMonthTitle)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.70))
+                            }
+                            Spacer()
+                            HStack(spacing: 0) {
+                                Button { withAnimation { calendarOffset -= 1 } } label: {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(.white.opacity(0.55))
+                                        .padding(.horizontal, 8).padding(.vertical, 4)
+                                }
+                                .buttonStyle(.plain)
+                                Button { withAnimation { calendarOffset = min(calendarOffset + 1, 0) } } label: {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(calendarOffset < 0 ? .white.opacity(0.55) : .white.opacity(0.20))
+                                        .padding(.horizontal, 8).padding(.vertical, 4)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(calendarOffset >= 0)
+                            }
+                        }
+                        CalendarGridView(
+                            highlightedEmotion: session.emotion,
+                            sessions: viewModel.sessions,
+                            monthOffset: calendarOffset
+                        )
+                    } header: { EmptyView() }
+
+                    // ── Frequency Bar Graph ───────────────────────────────
+                    sectionCard(icon: "chart.bar.fill") {
                         HStack(spacing: 6) {
-                            Image(systemName: "calendar")
+                            Image(systemName: "chart.bar.fill")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(session.emotion.color)
-                            Text(calendarMonthTitle)
+                            Text(freqPeriod.label)
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.70))
                         }
-                        Spacer()
-                        HStack(spacing: 0) {
-                            Button { withAnimation { calendarOffset -= 1 } } label: {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.55))
-                                    .padding(.horizontal, 8).padding(.vertical, 4)
-                            }
-                            .buttonStyle(.plain)
-                            Button { withAnimation { calendarOffset = min(calendarOffset + 1, 0) } } label: {
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(calendarOffset < 0 ? .white.opacity(0.55) : .white.opacity(0.20))
-                                    .padding(.horizontal, 8).padding(.vertical, 4)
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(calendarOffset >= 0)
-                        }
-                    }
-                    CalendarGridView(
-                        highlightedEmotion: session.emotion,
-                        sessions: viewModel.sessions,
-                        monthOffset: calendarOffset
-                    )
-                } header: { EmptyView() }
-
-                // ── Frequency Bar Graph ───────────────────────────────────
-                sectionCard(icon: "chart.bar.fill") {
-                    HStack(spacing: 6) {
-                        Image(systemName: "chart.bar.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(session.emotion.color)
-                        Text(freqPeriod.label)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.70))
-                    }
-                    FrequencyBarGraph(
-                        highlightedEmotion: session.emotion,
-                        sessions: viewModel.sessions,
-                        period: $freqPeriod
-                    )
-                 } header: { EmptyView() }
+                        FrequencyBarGraph(
+                            highlightedEmotion: session.emotion,
+                            sessions: viewModel.sessions,
+                            period: $freqPeriod
+                        )
+                    } header: { EmptyView() }
+                } // end Highlights + charts VStack
 
             }   // VStack
             .padding(.horizontal, 20)

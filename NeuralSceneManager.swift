@@ -150,12 +150,14 @@ final class NeuralSceneManager: ObservableObject {
     func beginRestoreAnimation() {
         isRestoring = true
 
-        // 1. Stop impulses
+        // 1. Stop impulses — collect first, then remove (never mutate inside enumerateChildNodes)
         impulseTask?.cancel()
+        var toRemove: [SCNNode] = []
         impulseRoot.enumerateChildNodes { [weak self] node, _ in
             guard node !== self?.synapseNode else { return }
-            node.removeFromParentNode()
+            toRemove.append(node)
         }
+        toRemove.forEach { $0.removeFromParentNode() }
 
         // 2. Set boutons + connections to white
         if !synapsePositions.isEmpty {
@@ -845,10 +847,13 @@ final class NeuralSceneManager: ObservableObject {
 
     private func startImpulseLoop(color: UIColor, cfg: ImpulseConfig) {
         impulseTask?.cancel()
+        // Collect first, remove after — mutating inside enumerateChildNodes crashes SceneKit
+        var toRemove: [SCNNode] = []
         impulseRoot.enumerateChildNodes { [weak self] node, _ in
             guard node !== self?.synapseNode else { return }
-            node.removeFromParentNode()
+            toRemove.append(node)
         }
+        toRemove.forEach { $0.removeFromParentNode() }
 
         let paths = synapsePaths
         guard !paths.isEmpty else { return }

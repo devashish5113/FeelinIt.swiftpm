@@ -89,47 +89,42 @@ struct ArticleBrowseCard: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
 
-                // Thumbnail
+                // ── Thumbnail ─────────────────────────────────────────────
                 ZStack {
                     LinearGradient(
-                        colors: [accentColor.opacity(0.65), accentColor.opacity(0.25)],
+                        colors: [accentColor.opacity(0.70), accentColor.opacity(0.30)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     )
-                    if let uiImg = UIImage(named: article.thumbnailName) {
-                        Image(uiImage: uiImg)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Image(systemName: placeholderIcon)
-                            .font(.system(size: 52, weight: .ultraLight))
-                            .foregroundStyle(.white.opacity(0.40))
-                    }
+                    Image(systemName: placeholderIcon)
+                        .font(.system(size: 52, weight: .ultraLight))
+                        .foregroundStyle(.white.opacity(0.35))
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 180)
-                .clipped()
+                .frame(height: 190)
 
-                // Text block
-                VStack(alignment: .leading, spacing: 6) {
+                // ── Text ──────────────────────────────────────────────────
+                VStack(alignment: .leading, spacing: 5) {
                     Text(article.title)
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(.white)
-                        .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(article.subtitle)
                         .font(.system(size: 14))
                         .foregroundStyle(.white.opacity(0.55))
-                        .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(16)
-                .background(.white.opacity(0.06))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .buttonStyle(.plain)
+        .background(Color(white: 0.13))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
+        .shadow(color: .black.opacity(0.25), radius: 10, x: 0, y: 4)
     }
 
     private var placeholderIcon: String {
