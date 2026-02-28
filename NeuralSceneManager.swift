@@ -108,7 +108,6 @@ final class NeuralSceneManager: ObservableObject {
     // MARK: - Update
 
     func update(parameters: EmotionParameters) {
-        // During restore animation, only apply rotation/motion — skip color changes
         guard !isRestoring else {
             currentParams = parameters
             sphereRoot.removeAction(forKey: "rot")
@@ -119,6 +118,29 @@ final class NeuralSceneManager: ObservableObject {
             return
         }
         applyParameters(parameters, animated: true)
+    }
+
+    /// Instantly snaps impulse / bouton / connection colors to the target emotion
+    /// without waiting for the lerp animation. Call this as soon as the user
+    /// selects a new emotion so there is zero color flicker during the transition.
+    func snapColors(for emotion: Emotion) {
+        guard !isRestoring else { return }
+        let color = NeuralSceneManager.hardcodedImpulseColor(for: emotion)
+
+        // Boutons
+        if !synapsePositions.isEmpty {
+            buildSynapseDisplay(positions: synapsePositions, color: color)
+        }
+        // Connection lines
+        let skel = skeletonPts
+        if !skel.isEmpty {
+            let thresh = Float(0.22 + EmotionParameters.make(for: emotion).connectivity * 0.22)
+            let (v, i) = Self.connectionGeo(positions: skel, threshold: thresh)
+            placeLines(vertices: v, indices: i, color: color)
+        }
+        // Impulse loop
+        let cfg = impulseConfig(for: emotion)
+        startImpulseLoop(color: color, cfg: cfg)
     }
 
     // MARK: - Restore Balance Animation
@@ -875,20 +897,33 @@ final class NeuralSceneManager: ObservableObject {
                                                     recursively: false)
         else { return }
 
+        // Force SCNView back to the named camera so our changes take effect.
+        v.pointOfView = cam
+
+        // Stop rotation so we can snap sphereRoot to a fixed orientation.
+        sphereRoot.removeAllActions()
+
         SCNTransaction.begin()
-        SCNTransaction.animationDuration = 0.9
+        SCNTransaction.animationDuration = 0.7
         SCNTransaction.animationTimingFunction =
             CAMediaTimingFunction(name: .easeInEaseOut)
+        // Fixed camera pose — always the same view
         cam.position    = SCNVector3(0, -0.4, 4.0)
         cam.eulerAngles = SCNVector3(0, 0, 0)
+        cam.camera?.fieldOfView = 65
+        // Reset sphere to canonical orientation — same starting angle every time
+        sphereRoot.eulerAngles = SCNVector3(0, 0, 0)
         SCNTransaction.commit()
 
-        // Restart rotation so sphereRoot snaps back gracefully
-        sphereRoot.removeAction(forKey: "rot")
-        sphereRoot.runAction(.repeatForever(
-            .rotateBy(x: 0.06, y: CGFloat(2 * Double.pi), z: 0.03,
-                      duration: currentParams.rotationDuration)
-        ), forKey: "rot")
+        // Restart rotation from the canonical orientation after animation settles
+        let dur = currentParams.rotationDuration
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            guard let self else { return }
+            self.sphereRoot.runAction(.repeatForever(
+                .rotateBy(x: 0.06, y: CGFloat(2 * Double.pi), z: 0.03,
+                          duration: dur)
+            ), forKey: "rot")
+        }
     }
 
     // MARK: - Scene Graph

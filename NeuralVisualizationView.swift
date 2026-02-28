@@ -157,6 +157,12 @@ struct NeuralVisualizationView: View {
         .onReceive(viewModel.$displayParameters) { params in
             sceneManager.update(parameters: params)
         }
+        .onReceive(viewModel.$selectedEmotion) { emotion in
+            // Snap colors immediately — no waiting for lerp animation
+            if let e = emotion {
+                sceneManager.snapColors(for: e)
+            }
+        }
         .onReceive(viewModel.$isRegulating) { regulating in
             if regulating {
                 if viewModel.selectedEmotion != .calm {
