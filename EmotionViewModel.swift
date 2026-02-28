@@ -6,6 +6,7 @@ import Combine
 enum GuidedPhase: Equatable {
     case hidden          // No emotion selected
     case caption         // Show educational caption bubble (5s)
+    case logPrompt       // Ask user: "Want to log this emotion?" Yes / No
     case restoreButton   // Caption gone, "Restore Balance" button floats in
     case stabilizing     // User tapped Restore Balance; camera active; guidance shown
     case restored        // Balance achieved; show calm message
@@ -39,6 +40,7 @@ final class EmotionViewModel: ObservableObject {
     private var stabilizeAccum: Double = 0
     private var stabilizeTimer: Timer?
     private var stabilizationStartTime: Date?
+    private var userWantsToLog: Bool = false
 
     init() { startStabilizeMonitor() }
 
@@ -59,13 +61,13 @@ final class EmotionViewModel: ObservableObject {
 
         // Camera stays OFF until user taps Restore Balance
 
-        // After 5s, caption fades — restore button floats in
+        // After 5s, caption fades — log prompt appears
         captionTimer?.invalidate()
         captionTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard self?.guidedPhase == .caption else { return }
                 withAnimation(.easeInOut(duration: 0.5)) {
-                    self?.guidedPhase = .restoreButton
+                    self?.guidedPhase = .logPrompt
                 }
             }
         }
@@ -81,6 +83,15 @@ final class EmotionViewModel: ObservableObject {
         stabilizeAccum = 0
         isRegulating = false
         regulationProgress = 0
+    }
+
+    /// Called when user answers the "Want to log?" prompt
+    func answerLogPrompt(wantsToLog: Bool) {
+        guard guidedPhase == .logPrompt else { return }
+        userWantsToLog = wantsToLog
+        withAnimation(.easeInOut(duration: 0.45)) {
+            guidedPhase = .restoreButton
+        }
     }
 
     /// Called when user taps "Restore Balance"
@@ -149,13 +160,13 @@ final class EmotionViewModel: ObservableObject {
         let elapsed = stabilizationStartTime.map { Date().timeIntervalSince($0) } ?? 0
         let quality = breathingManager.isCalmBreathing ? "Calm" : "Elevated"
         if let emotion = selectedEmotion {
-            // Only record if not already explored this emotion in this session
             if !sessions.contains(where: { $0.emotion == emotion }) {
                 sessions.append(EmotionSession(
                     emotion: emotion,
                     date: Date(),
                     stabilizationTime: elapsed,
-                    breathingQuality: quality
+                    breathingQuality: quality,
+                    isLogged: userWantsToLog
                 ))
             }
         }

@@ -157,12 +157,12 @@ struct JourneyView: View {
         }
         .sheet(item: $detailSession, onDismiss: contractOrb) { session in
             if #available(iOS 16.4, *) {
-                SessionDetailSheet(session: session)
+                SessionDetailSheet(session: session, viewModel: viewModel)
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
                     .presentationBackground(.ultraThinMaterial)
             } else {
-                SessionDetailSheet(session: session)
+                SessionDetailSheet(session: session, viewModel: viewModel)
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
@@ -406,78 +406,577 @@ struct ConstellationCanvas: View {
 
 struct SessionDetailSheet: View {
     let session: EmotionSession
+    @ObservedObject var viewModel: EmotionViewModel
+
+    // Calendar month navigation (0 = current month, -1 = last month, etc.)
+    @State private var calendarOffset: Int = 0
+    // Frequency bar graph period, lifted so section title can reflect it
+    @State private var freqPeriod: FrequencyPeriod = .week
+    // Lifted article selection — avoids nested-sheet SwiftUI bug
+    @State private var selectedArticle: EmotionArticle? = nil
+
+    // "February 2026" based on calendarOffset
+    private var calendarMonthTitle: String {
+        let cal  = Calendar.current
+        let base = cal.date(byAdding: .month, value: calendarOffset, to: Date()) ?? Date()
+        let fmt  = DateFormatter()
+        fmt.dateFormat = "MMMM yyyy"
+        return fmt.string(from: base)
+    }
 
     var body: some View {
-        ZStack {
-            // Transparent base — lets presentationBackground material show through on iOS 16.4+
-            // On older iOS: subtle emotion tint only
-            Color.clear.ignoresSafeArea()
-            session.emotion.color.opacity(0.12).ignoresSafeArea()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
 
-            VStack(spacing: 0) {
-                Spacer().frame(height: 36)
-
-                // Emotion identity
-                VStack(spacing: 14) {
+                // ── Header ────────────────────────────────────────────────
+                HStack(spacing: 14) {
                     Text(session.emotion.emoji)
-                        .font(.system(size: 72))
-                        .shadow(color: session.emotion.color.opacity(0.9), radius: 28)
+                        .font(.system(size: 52))
+                        .shadow(color: session.emotion.color.opacity(0.8), radius: 20)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(session.emotion.rawValue)
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text(session.formattedFullDate)
+                            .font(.system(size: 12)).foregroundStyle(.white.opacity(0.45))
+                    }
+                    Spacer()
+                    // Quick stat pill
+                    VStack(spacing: 2) {
+                        Image(systemName: "timer").foregroundStyle(session.emotion.color)
+                            .font(.system(size: 13))
+                        Text(session.formattedStabilizationTime)
+                            .font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                        Text("stabilised").font(.system(size: 9)).foregroundStyle(.white.opacity(0.45))
+                    }
+                    .padding(10)
+                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                }
+                .padding(.top, 8)
 
-                    Text(session.emotion.rawValue)
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                // ── Monthly Calendar ──────────────────────────────────────
+                sectionCard(icon: "calendar") {
+                    // Dynamic title with prev / next navigation
+                    HStack {
+                        HStack(spacing: 6) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(session.emotion.color)
+                            Text(calendarMonthTitle)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.70))
+                        }
+                        Spacer()
+                        HStack(spacing: 0) {
+                            Button { withAnimation { calendarOffset -= 1 } } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.55))
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                            }
+                            .buttonStyle(.plain)
+                            Button { withAnimation { calendarOffset = min(calendarOffset + 1, 0) } } label: {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(calendarOffset < 0 ? .white.opacity(0.55) : .white.opacity(0.20))
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(calendarOffset >= 0)
+                        }
+                    }
+                    CalendarGridView(
+                        highlightedEmotion: session.emotion,
+                        sessions: viewModel.sessions,
+                        monthOffset: calendarOffset
+                    )
+                } header: { EmptyView() }
+
+                // ── Frequency Bar Graph ───────────────────────────────────
+                sectionCard(icon: "chart.bar.fill") {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chart.bar.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(session.emotion.color)
+                        Text(freqPeriod.label)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.70))
+                    }
+                    FrequencyBarGraph(
+                        highlightedEmotion: session.emotion,
+                        sessions: viewModel.sessions,
+                        period: $freqPeriod
+                    )
+                } header: { EmptyView() }
+
+                // ── About [Emotion] ───────────────────────────────────────
+                // Section heading — outside any card, just like Apple Health
+                HStack(spacing: 8) {
+                    Image(systemName: "book.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(session.emotion.color)
+                    Text("About \(session.emotion.rawValue)")
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.white)
+                }
+                .padding(.top, 4)
 
-                    Text(session.emotion.tagline)
-                        .font(.system(size: 15, weight: .regular))
+                // 3 flat article browse cards
+                ForEach(session.emotion.articles) { article in
+                    ArticleCardView(
+                        article: article,
+                        accentColor: session.emotion.color,
+                        onTap: { selectedArticle = article }
+                    )
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 40)
+        }
+        // fullScreenCover avoids nested-sheet SwiftUI hang
+        .fullScreenCover(item: $selectedArticle) { article in
+            ArticleDetailSheet(article: article, accentColor: session.emotion.color)
+        }
+        .background(
+            ZStack {
+                Color.clear.ignoresSafeArea()
+                session.emotion.color.opacity(0.10).ignoresSafeArea()
+            }
+        )
+
+    }
+
+    // Generic bare card — header content is injected by caller
+    @ViewBuilder
+    private func sectionCard<Content: View, Header: View>(
+        icon: String,
+        @ViewBuilder content: () -> Content,
+        @ViewBuilder header: () -> Header
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            content()
+        }
+        .padding(16)
+        .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .strokeBorder(.white.opacity(0.10), lineWidth: 1))
+    }
+}
+
+// MARK: - Calendar Grid View
+
+struct CalendarGridView: View {
+    let highlightedEmotion: Emotion
+    let sessions: [EmotionSession]
+    let monthOffset: Int          // 0 = current month; negative = past months
+
+    private let calendar = Calendar.current
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
+    private let dayLabels = ["S","M","T","W","T","F","S"]
+
+    private var loggedSessions: [EmotionSession] { sessions.filter { $0.isLogged } }
+
+    // First day of the displayed month
+    private var displayedMonthStart: Date {
+        let base = calendar.date(byAdding: .month, value: monthOffset, to: Date()) ?? Date()
+        let comps = calendar.dateComponents([.year, .month], from: base)
+        return calendar.date(from: comps) ?? base
+    }
+
+    private var monthDays: [Date?] {
+        let first = displayedMonthStart
+        guard let range = calendar.range(of: .day, in: .month, for: first) else { return [] }
+        let weekday = calendar.component(.weekday, from: first) - 1
+        var days: [Date?] = Array(repeating: nil, count: weekday)
+        for d in range {
+            if let date = calendar.date(byAdding: .day, value: d - 1, to: first) {
+                days.append(date)
+            }
+        }
+        return days
+    }
+
+    private func sessionsOn(_ date: Date) -> [EmotionSession] {
+        loggedSessions.filter { calendar.isDate($0.date, inSameDayAs: date) }
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            // Day-of-week header
+            HStack(spacing: 0) {
+                ForEach(dayLabels, id: \.self) { d in
+                    Text(d).font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.30))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+
+            LazyVGrid(columns: columns, spacing: 4) {
+                ForEach(Array(monthDays.enumerated()), id: \.offset) { _, day in
+                    if let day = day {
+                        DayCell(day: day,
+                                daySessions: sessionsOn(day),
+                                highlightedEmotion: highlightedEmotion,
+                                isToday: calendar.isDateInToday(day))
+                    } else {
+                        Color.clear.frame(height: 36)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct DayCell: View {
+    let day: Date
+    let daySessions: [EmotionSession]
+    let highlightedEmotion: Emotion
+    let isToday: Bool
+
+    private var dayNumber: String {
+        "\(Calendar.current.component(.day, from: day))"
+    }
+
+    // Session for the highlighted emotion on this day (if any)
+    private var highlightSession: EmotionSession? {
+        daySessions.first { $0.emotion == highlightedEmotion }
+    }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(dayNumber)
+                .font(.system(size: 11, weight: isToday ? .bold : .regular))
+                .foregroundStyle(isToday ? highlightedEmotion.color : .white.opacity(0.55))
+                .frame(height: 16)
+
+            // Dot row: always compact — dot for highlighted + overflow count
+            Group {
+                if daySessions.isEmpty {
+                    Color.clear.frame(width: 5, height: 5)
+                } else if daySessions.count == 1 {
+                    // Single dot
+                    Circle()
+                        .fill(daySessions[0].emotion.color)
+                        .opacity(daySessions[0].emotion == highlightedEmotion ? 1.0 : 0.22)
+                        .frame(width: 5, height: 5)
+                } else {
+                    // More than one: show highlighted emotion dot (or first) + overflow
+                    HStack(spacing: 2) {
+                        let show = highlightSession ?? daySessions[0]
+                        Circle()
+                            .fill(show.emotion.color)
+                            .frame(width: 5, height: 5)
+                        let extra = daySessions.count - 1
+                        Text("+\(extra)")
+                            .font(.system(size: 6, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                }
+            }
+        }
+        .frame(height: 36)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isToday ? highlightedEmotion.color.opacity(0.15) : .clear)
+        )
+    }
+}
+
+// MARK: - Frequency Vertical Bar Graph
+
+enum FrequencyPeriod: String, CaseIterable {
+    case day  = "D"
+    case week = "W"
+    case month = "M"
+    case year = "Y"
+
+    var days: Int {
+        switch self { case .day: return 1; case .week: return 7; case .month: return 30; case .year: return 365 }
+    }
+
+    var label: String {
+        switch self { case .day: return "Today"; case .week: return "Last 7 Days"; case .month: return "Last 30 Days"; case .year: return "Last Year" }
+    }
+}
+
+struct FrequencyBarGraph: View {
+    let highlightedEmotion: Emotion
+    let sessions: [EmotionSession]
+
+    @Binding var period: FrequencyPeriod
+
+    private var loggedInPeriod: [EmotionSession] {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -period.days, to: Date()) ?? Date()
+        return sessions.filter { $0.isLogged && $0.date >= cutoff }
+    }
+
+    private func count(for emotion: Emotion) -> Int {
+        loggedInPeriod.filter { $0.emotion == emotion }.count
+    }
+
+    private var maxCount: Int {
+        max(1, Emotion.allCases.map { count(for: $0) }.max() ?? 1)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            periodPicker
+            periodSubtitle
+            barsRow
+        }
+    }
+
+    private var periodPicker: some View {
+        HStack(spacing: 0) {
+            ForEach(FrequencyPeriod.allCases, id: \.self) { p in
+                periodButton(p)
+            }
+        }
+        .padding(4)
+        .background(.white.opacity(0.10), in: Capsule())
+    }
+
+    @ViewBuilder
+    private func periodButton(_ p: FrequencyPeriod) -> some View {
+        let selected = (period == p)
+        Button { withAnimation(.spring(response: 0.35)) { period = p } } label: {
+            Text(p.rawValue)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(selected ? Color.black : Color.white.opacity(0.55))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(selected ? AnyView(Color.white.clipShape(Capsule())) : AnyView(Color.clear))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var periodSubtitle: some View {
+        Text(period.label)
+            .font(.system(size: 11))
+            .foregroundStyle(Color.white.opacity(0.35))
+    }
+
+    private var barsRow: some View {
+        GeometryReader { geo in
+            let barW   = (geo.size.width - 5 * 12) / 6
+            let chartH = geo.size.height - 32
+            HStack(alignment: .bottom, spacing: 12) {
+                ForEach(Emotion.allCases, id: \.self) { emotion in
+                    barColumn(emotion: emotion, barWidth: barW, chartH: chartH)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .frame(height: 140)
+    }
+
+    // Extracted to help the type-checker — avoids complex inline expression
+    @ViewBuilder
+    private func barColumn(emotion: Emotion, barWidth: CGFloat, chartH: CGFloat) -> some View {
+        let c     = count(for: emotion)
+        let isHL  = emotion == highlightedEmotion
+        let fillH = c == 0 ? CGFloat(2) : CGFloat(c) / CGFloat(maxCount) * chartH
+
+        VStack(spacing: 4) {
+            Text(c == 0 ? "" : "\(c)")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(isHL ? emotion.color : .white.opacity(0.45))
+                .frame(height: 12)
+
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(isHL ? AnyShapeStyle(emotion.color) : AnyShapeStyle(Color.white.opacity(0.18)))
+                .frame(width: barWidth, height: max(2, fillH))
+                .opacity(isHL ? 1.0 : 0.5)
+                .animation(.spring(response: 0.55, dampingFraction: 0.72), value: c)
+
+            Text(emotion.emoji)
+                .font(.system(size: 14))
+                .frame(width: barWidth)
+        }
+    }
+}
+
+// MARK: - Article Browse Card (Health-app style)
+
+struct ArticleCardView: View {
+    let article: EmotionArticle
+    let accentColor: Color
+    let onTap: () -> Void      // caller (SessionDetailSheet) owns the sheet
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 0) {
+
+                // ── Thumbnail ───────────────────────────────────────────
+                ZStack {
+                    LinearGradient(
+                        colors: [accentColor.opacity(0.55), accentColor.opacity(0.20)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                    if let uiImg = UIImage(named: article.thumbnailName) {
+                        Image(uiImage: uiImg)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Image(systemName: thumbnailIcon)
+                            .font(.system(size: 48, weight: .ultraLight))
+                            .foregroundStyle(.white.opacity(0.35))
+                    }
+                }
+                .frame(height: 160)
+                .clipped()
+
+                // ── Text block ─────────────────────────────────────────
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(article.title)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+
+                    Text(article.subtitle)
+                        .font(.system(size: 13))
                         .foregroundStyle(.white.opacity(0.55))
-                }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
 
-                Spacer().frame(height: 48)
-
-                // Stats card
-                HStack(spacing: 0) {
-                    statCell(icon: "timer",
-                             label: "Stabilised in",
-                             value: session.formattedStabilizationTime)
-                    Rectangle()
-                        .fill(.white.opacity(0.15))
-                        .frame(width: 1, height: 54)
-                    statCell(icon: "lungs.fill",
-                             label: "Breathing",
-                             value: session.breathingQuality)
+                    HStack(spacing: 6) {
+                        Text(article.readTime)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(accentColor)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(accentColor.opacity(0.15), in: Capsule())
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.25))
+                    }
+                    .padding(.top, 2)
                 }
-                .padding(.horizontal, 40).padding(.vertical, 24)
-                .background(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .strokeBorder(session.emotion.color.opacity(0.35), lineWidth: 1)
+                .padding(14)
+            }
+        }
+        .buttonStyle(.plain)
+        .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .strokeBorder(.white.opacity(0.10), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // No .sheet here — sheet is owned by SessionDetailSheet
+    }
+
+    private var thumbnailIcon: String {
+        switch article.thumbnailName {
+        case let n where n.contains("calm"):    return "waveform.path.ecg"
+        case let n where n.contains("anxiety"): return "bolt.fill"
+        case let n where n.contains("sadness"): return "cloud.rain.fill"
+        case let n where n.contains("love"):    return "heart.fill"
+        case let n where n.contains("happy"):   return "sparkles"
+        case let n where n.contains("angry"):   return "flame.fill"
+        default: return "doc.text.fill"
+        }
+    }
+}
+
+
+// MARK: - Article Full-Screen Sheet
+
+struct ArticleDetailSheet: View {
+    let article: EmotionArticle
+    let accentColor: Color
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+
+                    // ── Hero thumbnail ─────────────────────────────────
+                    ZStack {
+                        LinearGradient(
+                            colors: [accentColor.opacity(0.60), accentColor.opacity(0.25)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
                         )
-                )
-                .padding(.horizontal, 32)
+                        if let uiImg = UIImage(named: article.thumbnailName) {
+                            Image(uiImage: uiImg)
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Image(systemName: heroIcon)
+                                .font(.system(size: 80, weight: .ultraLight))
+                                .foregroundStyle(.white.opacity(0.30))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 220)
+                    .clipped()
 
-                Spacer().frame(height: 20)
+                    // ── Article body ───────────────────────────────────
+                    VStack(alignment: .leading, spacing: 22) {
 
-                Text(session.formattedFullDate)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.40))
+                        // Big title
+                        Text(article.title)
+                            .font(.system(size: 28, weight: .bold, design: .default))
+                            .foregroundStyle(Color(.label))
+                            .fixedSize(horizontal: false, vertical: true)
 
-                Spacer()
+                        // Sections
+                        ForEach(article.sections) { section in
+                            VStack(alignment: .leading, spacing: 8) {
+                                if !section.heading.isEmpty {
+                                    Text(section.heading)
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundStyle(Color(.label))
+                                }
+                                Text(section.body)
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(Color(.secondaryLabel))
+                                    .lineSpacing(5)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+
+                        // Source attribution
+                        HStack(spacing: 5) {
+                            Image(systemName: "link")
+                                .font(.system(size: 11))
+                            Text("Source: \(article.source)")
+                                .font(.system(size: 12))
+                        }
+                        .foregroundStyle(Color(.tertiaryLabel))
+                        .padding(.top, 8)
+                        .padding(.bottom, 40)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 24)
+                    .background(Color(.systemBackground))
+                }
+            }
+            .ignoresSafeArea(edges: .top)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .fontWeight(.semibold)
+                        .foregroundStyle(accentColor)
+                }
             }
         }
     }
 
-    @ViewBuilder
-    private func statCell(icon: String, label: String, value: String) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon).font(.system(size: 18)).foregroundStyle(session.emotion.color)
-            Text(value).font(.system(size: 22, weight: .semibold, design: .rounded)).foregroundStyle(.white)
-            Text(label).font(.system(size: 11)).foregroundStyle(.white.opacity(0.50))
+    private var heroIcon: String {
+        switch article.thumbnailName {
+        case let n where n.contains("calm"):    return "waveform.path.ecg"
+        case let n where n.contains("anxiety"): return "bolt.fill"
+        case let n where n.contains("sadness"): return "cloud.rain.fill"
+        case let n where n.contains("love"):    return "heart.fill"
+        case let n where n.contains("happy"):   return "sparkles"
+        case let n where n.contains("angry"):   return "flame.fill"
+        default: return "doc.text.fill"
         }
-        .frame(maxWidth: .infinity)
     }
 }
+
 
 // MARK: - Star Field
 

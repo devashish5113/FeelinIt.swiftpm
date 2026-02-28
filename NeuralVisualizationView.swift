@@ -91,6 +91,19 @@ struct NeuralVisualizationView: View {
                         ))
                 }
 
+                // Log prompt bubble (phase: .logPrompt)
+                if viewModel.guidedPhase == .logPrompt {
+                    LogPromptBubble(emotion: emotion) { wantsToLog in
+                        viewModel.answerLogPrompt(wantsToLog: wantsToLog)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 40)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .bottom)),
+                        removal: .opacity.combined(with: .move(edge: .bottom))
+                    ))
+                }
+
                 // Restore Balance button (phase: .restoreButton)
                 if viewModel.guidedPhase == .restoreButton {
                     RestoreBalanceButton(color: emotion.color) {
@@ -131,6 +144,81 @@ struct NeuralVisualizationView: View {
         }
         .onReceive(viewModel.$displayParameters) { params in
             sceneManager.update(parameters: params)
+        }
+    }
+}
+
+// MARK: - Log Prompt Bubble
+
+struct LogPromptBubble: View {
+    let emotion: Emotion
+    let onAnswer: (Bool) -> Void
+    @State private var glow = false
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(emotion.color)
+                    .scaleEffect(glow ? 1.12 : 1.0)
+
+                Text("Want to log \(emotion.rawValue) \(emotion.emoji) to your journal?")
+                    .font(.system(size: 13.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(3)
+
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 12) {
+                // No button
+                Button { onAnswer(false) } label: {
+                    Text("Not now")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.65))
+                        .padding(.horizontal, 24).padding(.vertical, 10)
+                        .background(.white.opacity(0.10), in: Capsule())
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.20), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+
+                // Yes button
+                Button { onAnswer(true) } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .bold))
+                        Text("Log it")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 24).padding(.vertical, 10)
+                    .background(emotion.color.opacity(0.35), in: Capsule())
+                    .overlay(Capsule().strokeBorder(emotion.color.opacity(0.8), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 18, style: .continuous).fill(emotion.color.opacity(0.08))
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(colors: [emotion.color.opacity(0.7), emotion.color.opacity(0.2)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: emotion.color.opacity(0.25), radius: 16, x: 0, y: 4)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) { glow = true }
         }
     }
 }

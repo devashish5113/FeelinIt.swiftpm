@@ -7,8 +7,9 @@ struct EmotionSession: Identifiable {
     let id   = UUID()
     let emotion:            Emotion
     let date:               Date
-    let stabilizationTime:  TimeInterval  // seconds spent in .stabilizing before balance restored
-    let breathingQuality:   String        // "Calm" or "Elevated"
+    let stabilizationTime:  TimeInterval
+    let breathingQuality:   String
+    let isLogged:           Bool       // true only when user tapped "Yes" to log prompt
 
     var formattedStabilizationTime: String {
         let s = Int(max(0, stabilizationTime))
