@@ -95,12 +95,19 @@ struct ArticleBrowseCard: View {
                         colors: [accentColor.opacity(0.70), accentColor.opacity(0.30)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     )
-                    Image(systemName: placeholderIcon)
-                        .font(.system(size: 52, weight: .ultraLight))
-                        .foregroundStyle(.white.opacity(0.35))
+                    if let uiImg = UIImage(named: article.thumbnailName) {
+                        Image(uiImage: uiImg)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Image(systemName: placeholderIcon)
+                            .font(.system(size: 52, weight: .ultraLight))
+                            .foregroundStyle(.white.opacity(0.35))
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 190)
+                .clipped()
 
                 // ── Text ──────────────────────────────────────────────────
                 VStack(alignment: .leading, spacing: 5) {
@@ -150,47 +157,54 @@ struct ArticleDetailSheet: View {
     var body: some View {
         NavigationView {
             ScrollView {
+                // frame(maxWidth: .infinity) gives the column a definite width
+                // so all child Text views know their wrapping boundary.
                 VStack(alignment: .leading, spacing: 0) {
 
-                    // Hero thumbnail
-                    ZStack {
-                        LinearGradient(
-                            colors: [accentColor.opacity(0.65), accentColor.opacity(0.25)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
-                        if let uiImg = UIImage(named: article.thumbnailName) {
-                            Image(uiImage: uiImg)
-                                .resizable()
-                                .scaledToFill()
-                        } else {
-                            Image(systemName: heroIcon)
-                                .font(.system(size: 80, weight: .ultraLight))
-                                .foregroundStyle(.white.opacity(0.35))
+                    // Hero thumbnail — GeometryReader ensures image layout
+                    // never exceeds screen width regardless of aspect ratio
+                    GeometryReader { geo in
+                        ZStack {
+                            LinearGradient(
+                                colors: [accentColor.opacity(0.65), accentColor.opacity(0.25)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                            if let uiImg = UIImage(named: article.thumbnailName) {
+                                Image(uiImage: uiImg)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: geo.size.width, height: 240)
+                                    .clipped()
+                            } else {
+                                Image(systemName: heroIcon)
+                                    .font(.system(size: 80, weight: .ultraLight))
+                                    .foregroundStyle(.white.opacity(0.35))
+                            }
                         }
+                        .frame(width: geo.size.width, height: 240)
                     }
-                    .frame(maxWidth: .infinity)
                     .frame(height: 240)
-                    .clipped()
 
-                    // Article body
+                    // Article body — 24pt breathing room on both sides
                     VStack(alignment: .leading, spacing: 22) {
                         Text(article.title)
-                            .font(.system(size: 28, weight: .bold))
+                            .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(Color(.label))
-                            .fixedSize(horizontal: false, vertical: true)
+                            .multilineTextAlignment(.leading)
 
                         ForEach(article.sections) { section in
                             VStack(alignment: .leading, spacing: 8) {
                                 if !section.heading.isEmpty {
                                     Text(section.heading)
-                                        .font(.system(size: 20, weight: .bold))
+                                        .font(.system(size: 17, weight: .semibold))
                                         .foregroundStyle(Color(.label))
+                                        .multilineTextAlignment(.leading)
                                 }
                                 Text(section.body)
                                     .font(.system(size: 16))
                                     .foregroundStyle(Color(.secondaryLabel))
-                                    .lineSpacing(5)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                    .lineSpacing(6)
+                                    .multilineTextAlignment(.leading)
                             }
                         }
 
@@ -200,15 +214,18 @@ struct ArticleDetailSheet: View {
                                 .font(.system(size: 11))
                             Text("Source: \(article.source)")
                                 .font(.system(size: 12))
+                                .multilineTextAlignment(.leading)
                         }
                         .foregroundStyle(Color(.tertiaryLabel))
-                        .padding(.top, 6)
-                        .padding(.bottom, 40)
+                        .padding(.top, 8)
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 24)
                     .padding(.top, 24)
+                    .padding(.bottom, 48)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(.systemBackground))
                 }
+                .frame(maxWidth: .infinity)   // ← key: constrains text width
             }
             .ignoresSafeArea(edges: .top)
             .navigationBarTitleDisplayMode(.inline)

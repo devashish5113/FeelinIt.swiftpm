@@ -63,22 +63,7 @@ extension Emotion {
                     ]
                 ),
 
-                EmotionArticle(
-                    title: "Breaking the Cortisol Feedback Loop",
-                    subtitle: "How an overstressed nervous system keeps itself stressed.",
-                    thumbnailName: "thumb_calm_cortisol",
-                    readTime: "4 min read",
-                    source: "Psychology Today",
-                    sourceURL: "https://www.psychologytoday.com/nz/blog/living-forward/202312/nurturing-serenity-natural-ways-to-calm-your-nervous-system",
-                    sections: [
-                        ArticleSection(heading: "", body: "Thoughts and feelings are inherently part of a chemical process regulated by the nervous system. When your nervous system is overstressed or isn't functioning optimally, the neuro-chemical balance of your brain is disrupted — negatively affecting both how you think and how you feel. This creates one of the most challenging feedback loops in human psychology."),
-                        ArticleSection(heading: "The Anxiety Spiral", body: "If you're thinking about things that make you feel anxious, your brain releases more cortisol. Elevated cortisol makes thinking even more anxious — triggering more anxious thoughts, which leads to more cortisol. This spiral can be nearly impossible to interrupt through willpower alone. The brain's stress architecture is designed to be self-reinforcing under perceived threat — a feature that helped our ancestors survive danger but becomes deeply unhelpful when the 'threat' is a to-do list."),
-                        ArticleSection(heading: "What a Dysregulated Nervous System Looks Like", body: "A nervous system that is chronically out of balance produces recognisable symptoms: being easily overwhelmed, difficulty concentrating, insomnia, frequent mood shifts, low tolerance for frustration, and a tendency toward emotional overreaction or emotional numbness. These are not character flaws — they are physiological signals that the system's fight/flight branch is chronically overactive and the parasympathetic 'rest and digest' branch has become exhausted."),
-                        ArticleSection(heading: "Chronic Stress as a Physical Condition", body: "Sustained stress is not merely psychological — it is a physical condition. Chronically elevated cortisol impairs the hippocampus (memory), reduces grey matter in the prefrontal cortex (rational thought), promotes systemic inflammation, disrupts sleep architecture, and eventually suppresses immune function. Long-term unrelenting stress is a recognized precursor to anxiety disorders, clinical depression, cardiovascular disease, and metabolic conditions including type 2 diabetes."),
-                        ArticleSection(heading: "Natural Ways to Interrupt the Loop", body: "The feedback loop can be interrupted. Sleep is the most powerful cortisol regulator available — consistently getting 7–9 hours of quality sleep reduces baseline cortisol significantly. Aerobic exercise burns off circulating stress hormones and triggers endorphin and endocannabinoid release. Time in nature lowers cortisol within 20 minutes of exposure. Social connection activates oxytocin, which directly inhibits cortisol. Cold exposure and breathwork strengthen the parasympathetic response. None of these require medication. All of them, practiced consistently, recalibrate the nervous system at the biological level — gradually making the cortisol spiral less likely to take hold.")
-                    ]
-                )
-            ]
+]
 
         // ════════════════════════════════════════════════════════════════
         // ANXIETY
@@ -118,49 +103,17 @@ extension Emotion {
                     ]
                 ),
 
-                EmotionArticle(
-                    title: "Anxiety and the Brain: What Changes",
-                    subtitle: "The neural circuits that drive anxious thinking.",
-                    thumbnailName: "thumb_anxiety_brain",
-                    readTime: "4 min read",
-                    source: "Creyos",
-                    sourceURL: "https://creyos.com/blog/anxiety-and-the-brain",
-                    sections: [
-                        ArticleSection(heading: "", body: "Anxiety is one of the most common mental health conditions globally, yet its neural underpinnings are often misunderstood. Far from being a weakness of character, anxiety is rooted in identifiable brain circuits and neurochemical systems — and understanding this biology is the first step toward working with it effectively."),
-                        ArticleSection(heading: "The Threat Detection Network", body: "The brain region most associated with anxiety is the amygdala — a paired almond-shaped structure in the temporal lobe that processes emotional memories and triggers fear responses. In individuals with anxiety disorders, the amygdala is hyperreactive: it responds more intensely to threatening stimuli and takes longer to return to baseline. Neuroimaging studies consistently show elevated amygdala activity in people with generalised anxiety disorder, PTSD, social anxiety, and panic disorder."),
-                        ArticleSection(heading: "Prefrontal Cortex: The Rational Brake", body: "Normally, the prefrontal cortex (PFC) — the seat of reasoning, planning, and impulse control — provides top-down regulation of the amygdala. Emotional reactions bubble up from below; rational assessment filters them from above. In anxiety, this regulatory relationship breaks down. The PFC's inhibitory influence over the amygdala weakens, and the alarm system gains disproportionate influence over thought and behaviour. This is why anxious thinking feels uncontrollable — the neural architecture supporting rational override is functionally impaired."),
-                        ArticleSection(heading: "Neurochemistry of Anxiety", body: "At the molecular level, anxiety involves imbalances across several neurotransmitter systems. GABA — the brain's main inhibitory neurotransmitter — is reduced in anxiety, allowing neurons to fire more readily in response to stress signals. Serotonin dysregulation contributes to chronic worry and mood instability. Norepinephrine, released abundantly during the stress response, keeps the body and brain in a state of heightened alertness. Glutamate, the primary excitatory neurotransmitter, can be elevated in anxiety, driving rumination and hypervigilance."),
-                        ArticleSection(heading: "Neuroplasticity: The Path Through Anxiety", body: "The brain structures involved in anxiety are not fixed. Neuroplasticity — the brain's capacity to reorganise and form new connections — means that with consistent intervention, the balance of influence between the amygdala and prefrontal cortex can shift. Cognitive behavioural therapy, mindfulness-based stress reduction, and aerobic exercise have all been shown in imaging studies to reduce amygdala reactivity and strengthen prefrontal regulatory capacity. The brain that anxiety built can, with time and the right inputs, be rebuilt into something more resilient.")
-                    ]
-                )
-            ]
+]
 
         // ════════════════════════════════════════════════════════════════
         // SADNESS
         // ════════════════════════════════════════════════════════════════
         case .sadness:
             return [
-
-                EmotionArticle(
-                    title: "The Neuroscience of Feeling Sad",
-                    subtitle: "What's happening in your brain when sadness arrives.",
-                    thumbnailName: "thumb_sadness_neuro",
-                    readTime: "4 min read",
-                    source: "Aware Behavioral Health",
-                    sourceURL: "https://awarebehavioralhealth.com/2025/06/26/why-do-we-feel-sad-the-neuropsychology-of-sadness/",
-                    sections: [
-                        ArticleSection(heading: "", body: "Sadness is a universal human experience — the pull toward tears, the heaviness in the chest, the withdrawal from the world. But beneath this deeply felt emotional state lies a precisely coordinated neuropsychological process. As a psychiatrist would explain, sadness is not only a feeling; it is a biological event that the brain engages in for specific, meaningful reasons."),
-                        ArticleSection(heading: "The Brain Structures Involved", body: "Sadness arises from the interaction of several brain regions. The amygdala plays a pivotal role in recognising emotionally significant stimuli — it detects the loss, rejection, or failure that triggers sadness and broadcasts an emotional signal to the rest of the brain. The prefrontal cortex then intervenes to evaluate and moderate the response, moderating social behaviour and helping us decide how to respond to what we've felt. The hippocampus links the emotional experience to associated memories, shaping how we perceive and react to similar situations in the future — which is why certain places, songs, or smells can instantly reactivate sadness."),
-                        ArticleSection(heading: "The Role of Neurotransmitters", body: "Neurotransmitters shape the intensity and duration of sad feelings. Serotonin, which supports mood stability and emotional steadiness, is depleted during periods of sadness and depression. Dopamine, the brain's motivation and reward molecule, recedes — producing the characteristic loss of pleasure (anhedonia) and motivational withdrawal associated with deep sadness. Norepinephrine, which governs alertness and mood tone, also fluctuates. Imbalances across all three systems can transform ordinary grief into clinical depression when they persist without recovery."),
-                        ArticleSection(heading: "The Functional Role of Sadness", body: "While often viewed negatively, sadness serves important psychological functions. It facilitates emotional release — helping the brain process and integrate experiences of loss or disappointment. It deepens empathy, creating the conditions for genuine connection by allowing us to recognise and share in the vulnerability of others. It also signals a need for self-reflection or change, motivating adaptive behaviour that addresses underlying causes. Sadness, when it can be expressed appropriately, is a form of psychological intelligence — not a malfunction."),
-                        ArticleSection(heading: "Sadness vs. Depression: A Critical Distinction", body: "Sadness and depression are related but distinct. Sadness is an emotional response that arises in relation to specific circumstances and lifts as those circumstances change or are processed. Depression is persistent — present most of the day, nearly every day, regardless of external events, and accompanied by a broader cluster of symptoms: disturbed sleep, appetite changes, fatigue, difficulty concentrating, and loss of interest in previously enjoyed activities. Prolonged or intense sadness that does not lift may indicate that professional support is needed — not as a sign of weakness, but as recognition that the brain's chemistry requires attention.")
-                    ]
-                ),
-
                 EmotionArticle(
                     title: "The Chemistry Behind Sadness",
                     subtitle: "Hormones, neurotransmitters, and the biology of low mood.",
-                    thumbnailName: "thumb_sadness_chemistry",
+                    thumbnailName: "sadness2",
                     readTime: "4 min read",
                     source: "The Insight Clinic",
                     sourceURL: "https://theinsightclinic.ca/the-chemistry-of-sadness-hormones/",
@@ -176,7 +129,7 @@ extension Emotion {
                 EmotionArticle(
                     title: "Why Sadness Serves a Purpose",
                     subtitle: "The evolutionary and psychological value of feeling low.",
-                    thumbnailName: "thumb_sadness_purpose",
+                    thumbnailName: "sadness3",
                     readTime: "4 min read",
                     source: "Berkeley Wellbeing Institute",
                     sourceURL: "https://www.berkeleywellbeing.com/sadness.html",
@@ -199,7 +152,7 @@ extension Emotion {
                 EmotionArticle(
                     title: "Love's Chemical Cocktail",
                     subtitle: "Dopamine, oxytocin, and serotonin — the molecules of connection.",
-                    thumbnailName: "thumb_love_chemistry",
+                    thumbnailName: "love1",
                     readTime: "4 min read",
                     source: "Pacific Neuroscience Institute",
                     sourceURL: "https://www.pacificneuroscienceinstitute.org/blog/brain-health/the-neuroscience-of-love-and-connection/",
@@ -215,7 +168,7 @@ extension Emotion {
                 EmotionArticle(
                     title: "How Love Reshapes the Brain",
                     subtitle: "The brain regions that activate — and quiet — when we love.",
-                    thumbnailName: "thumb_love_brain",
+                    thumbnailName: "love2",
                     readTime: "4 min read",
                     source: "Pacific Neuroscience Institute",
                     sourceURL: "https://www.pacificneuroscienceinstitute.org/blog/brain-health/the-neuroscience-of-love-and-connection/",
@@ -227,22 +180,6 @@ extension Emotion {
                         ArticleSection(heading: "Heartbreak and the Pain Network", body: "Just as love activates reward circuits, heartbreak and social loss trigger neural responses associated with physical pain. Brain imaging studies show that romantic rejection activates the anterior cingulate cortex and the insula — regions that process physical pain signals. This is not metaphorical. The same neural substrates that register a broken bone or a burned finger respond to emotional rejection. This overlap likely evolved to prevent social exclusion, which in ancestral environments was genuinely life-threatening. It is also why, after a breakup, the grief feels viscerally physical.")
                     ]
                 ),
-
-                EmotionArticle(
-                    title: "The Heart's Electromagnetic Power",
-                    subtitle: "How love generates coherence between heart and brain.",
-                    thumbnailName: "thumb_love_heart",
-                    readTime: "4 min read",
-                    source: "Psychology Today",
-                    sourceURL: "https://www.psychologytoday.com/nz/blog/building-the-habit-of-hero/202011/the-hearts-electromagnetic-field-is-your-superpower",
-                    sections: [
-                        ArticleSection(heading: "", body: "The heart has long been a symbol of love — but the science of neuro-cardiology suggests the symbol is more literal than we realised. The heart is not simply a pump. It is an intelligent, feeling organ with its own elaborate neural architecture, one that communicates continuously and bidirectionally with the brain in ways that profoundly shape our emotional experience."),
-                        ArticleSection(heading: "The Heart as a Second Brain", body: "The heart contains approximately 40,000 neurons — enough to learn, remember, and process information independently of the head-brain. Research from the HeartMath Institute reveals that the heart-brain actually sends more signals upward to the head-brain than the other way around. The heart responds to emotional tone before the conscious mind registers what it's reacting to, and cardiac changes directly influence the brain's available cognitive and emotional bandwidth. When the heart's rhythm is harmonious, the brain functions better."),
-                        ArticleSection(heading: "Heart-Brain Coherence", body: "Dr. Rollin McCraty of the HeartMath Institute describes coherence as 'the state when the heart, mind, and emotions are in energetic alignment and cooperation.' Positive emotions such as love and compassion create a smooth, ordered rhythm in the heart's electrical activity — a state of physiological coherence. Negative emotions like anger and anxiety produce an erratic, disordered rhythm — an incoherent state. The brain receives these rhythmic signals continuously. In a coherent state, the brain's alpha activity increases, supporting stress relief, creative thinking, and expanded awareness."),
-                        ArticleSection(heading: "The Electromagnetic Field of the Heart", body: "The heart generates an electrical component approximately 60 times stronger than the brain's, and an electromagnetic field approximately 5,000 times greater. This field extends about three feet beyond the body's physical surface and can be detected via electrocardiogram in people sitting nearby. The potential for this field to interact with other people's electromagnetic fields — and to be influenced by their emotional states — is an active area of research. Have you ever noticed how certain people make you feel lighter, calmer, or more energised simply by being present? This may have a measurable electromagnetic basis."),
-                        ArticleSection(heading: "Training Heart-Brain Coherence", body: "Coherence can be deliberately cultivated. Practices that invoke genuine positive emotions — appreciation, compassion, care — are among the most effective. The HeartMath technique of 'heart-focused breathing' involves directing attention to the heart region, breathing slowly and intentionally, and actively evoking a feeling of genuine appreciation or care. This practice has been shown to rapidly shift the heart's rhythm toward coherence, reduce cortisol, increase DHEA (a longevity-associated hormone), and improve cognitive performance. Love, in this framework, is not merely an emotion — it is a trainable physiological state with measurable biological benefits.")
-                    ]
-                )
             ]
 
         // ════════════════════════════════════════════════════════════════
@@ -254,7 +191,7 @@ extension Emotion {
                 EmotionArticle(
                     title: "The Seven Neurochemicals of Joy",
                     subtitle: "Meet the brain molecules that generate happiness.",
-                    thumbnailName: "thumb_happy_neuro",
+                    thumbnailName: "happy1",
                     readTime: "4 min read",
                     source: "Psychology Today",
                     sourceURL: "https://www.psychologytoday.com/us/blog/the-athletes-way/201211/the-neurochemicals-of-happiness",
@@ -267,27 +204,10 @@ extension Emotion {
                         ArticleSection(heading: "Cultivating a Neurochemically Rich Life", body: "The insight from neurochemistry is that happiness is not an accident — it is the by-product of a life rich in activities that support these molecular systems: movement, connection, purposeful achievement, physical affection, creative challenge, and time in nature. No single source can sustain all of them. The brain requires variety, novelty, and genuine engagement across multiple domains. A life built to produce regular, varied neurochemical reward is not a life of hedonism — it is a life of genuine flourishing.")
                     ]
                 ),
-
-                EmotionArticle(
-                    title: "The Hidden Costs of Chasing Happiness",
-                    subtitle: "Why demanding constant happiness can make you unhappier.",
-                    thumbnailName: "thumb_happy_paradox",
-                    readTime: "4 min read",
-                    source: "Oxford Mindfulness",
-                    sourceURL: "https://oxfordmindfulness.org/the-hidden-costs-of-happiness-what-psychology-and-neuroscience-reveal",
-                    sections: [
-                        ArticleSection(heading: "", body: "Happiness is widely treated as a goal — something to pursue, achieve, and maintain. But psychology and neuroscience together reveal a more complicated picture: the harder we demand happiness, the more elusive it becomes, and the act of chasing it can carry measurable psychological and even physical costs."),
-                        ArticleSection(heading: "The Loneliness of Forced Positivity", body: "Research shows that an intense, evaluative focus on being happy is linked to greater loneliness — particularly under stress. When happiness becomes a performance, self-monitoring dominates attention, crowding out the spontaneous, messy engagement with others that actually generates connection. Studies suggest that people who value happiness highly as a goal tend to be more self-focused and less open to genuine, reciprocal social interaction. The irony is stark: the pursuit of a feeling associated with social warmth can produce social isolation."),
-                        ArticleSection(heading: "Toxic Positivity and Suppression", body: "Toxic positivity describes the cultural and interpersonal pressure to maintain a positive emotional front regardless of circumstances — the injunction to 'look on the bright side' or 'stay positive' even in the face of genuine difficulty. Psychologists identify this as a form of emotional suppression. Suppressing difficult emotions does not make them disappear; it pushes them underground, where they continue to influence mood, cognition, and physiology. Research links chronic emotional suppression to elevated cortisol, impaired immune function, increased intrusive thoughts, and reduced relationship intimacy."),
-                        ArticleSection(heading: "Your Body Picks Up the Bill", body: "When happiness becomes a standard you must meet, failure to meet it registers biologically. The resulting shame and self-criticism activate the same stress pathways as external threat — triggering cortisol release, promoting inflammation, and disrupting sleep. The physical cost of 'happiness failure' is real. This mechanism may partly explain why rates of anxiety and depression are paradoxically elevated in societies that place the highest cultural premium on individual happiness and positive emotional display."),
-                        ArticleSection(heading: "What Actually Works", body: "Mindfulness offers a different orientation: not pursuing happiness as a goal, but meeting inner experience with honesty and kindness — whatever that experience happens to be. Rather than wrestling difficult emotions into compliance, mindfulness practice involves observing them with curiosity and allowing them to move through. Decades of clinical research demonstrate that this acceptance-based approach produces more durable wellbeing than happiness-seeking strategies. Kindness — toward others and toward oneself — emerges from the same research as one of the most reliable, science-backed routes to genuine wellbeing.")
-                    ]
-                ),
-
                 EmotionArticle(
                     title: "A Smile Rewires the Brain",
                     subtitle: "The neuroscience behind expression and emotional feedback.",
-                    thumbnailName: "thumb_happy_smile",
+                    thumbnailName: "happy3",
                     readTime: "4 min read",
                     source: "NBC News",
                     sourceURL: "https://www.nbcnews.com/better/health/smiling-can-trick-your-brain-happiness-boost-your-health-ncna822591",
@@ -310,7 +230,7 @@ extension Emotion {
                 EmotionArticle(
                     title: "What Happens in Your Brain When You're Angry",
                     subtitle: "The neural circuits that drive rage — and regulate it.",
-                    thumbnailName: "thumb_angry_brain",
+                    thumbnailName: "angry1",
                     readTime: "4 min read",
                     source: "Verywell Mind",
                     sourceURL: "https://www.verywellmind.com/what-happens-in-your-brain-when-youre-angry-8753372",
@@ -326,7 +246,7 @@ extension Emotion {
                 EmotionArticle(
                     title: "Anger Management: Inside the Brain",
                     subtitle: "What Harvard neuroscience reveals about wrath's neural roots.",
-                    thumbnailName: "thumb_angry_harvard",
+                    thumbnailName: "angry2",
                     readTime: "4 min read",
                     source: "Harvard Medicine Magazine",
                     sourceURL: "https://magazine.hms.harvard.edu/articles/anger-management",
@@ -338,22 +258,6 @@ extension Emotion {
                         ArticleSection(heading: "Anger as a Treatable Condition", body: "Dougherty's ongoing research applies these neuroimaging techniques to track what happens in the brain during treatment for anger using cognitive behavioural therapy and pharmacotherapy — documenting how these interventions alter the activation patterns of the amygdala and orbital frontal cortex. The emerging picture is that anger, far from being a character flaw or a permanent personality trait, is a neurologically rooted condition that responds to the same range of scientific interventions as depression or anxiety. Understanding this reframes both the experience of anger and the means of working with it.")
                     ]
                 ),
-
-                EmotionArticle(
-                    title: "Anger's Hidden Protective Role",
-                    subtitle: "Why anger evolved — and when it becomes a problem.",
-                    thumbnailName: "thumb_angry_role",
-                    readTime: "4 min read",
-                    source: "Clarity Child Guidance Center",
-                    sourceURL: "https://www.claritycgc.org/anger-amygdalas-and-frontal-lobes-how-to-take-charge-of-your-brain/",
-                    sections: [
-                        ArticleSection(heading: "", body: "Because of its connections with aggression and conflict, anger is often dismissed as simply a 'bad' emotion — something to be eliminated or rigidly controlled. But anger evolved for a reason, and dismissing it entirely misses both its protective function and the important signals it carries."),
-                        ArticleSection(heading: "What Anger Actually Is", body: "The American Psychological Association defines anger as 'an emotion characterised by antagonism toward someone or something you feel has deliberately done you wrong.' It is a primary emotion — one of the fundamental emotional categories found across all human cultures — that developed specifically to protect us from threats and injustice. At the biological level, the amygdala detects the perceived wrong and activates the body's defensive mobilisation system, readying us to confront rather than retreat from the threat."),
-                        ArticleSection(heading: "The Three Ways We Handle Anger", body: "There are three basic pathways for managing anger — each with distinct consequences. Anger suppression, where we fail to acknowledge the emotion and 'sit' in our feelings, is linked to cardiovascular disease, chronic stress, and depression. Anger expression — showing anger through physical acts or words — can be destructive when unregulated, but appropriate verbal expression ('I feel angry when...') has genuine positive effects on mental and physical health. Anger control, where we reduce the internal experience of anger itself, differs from suppression in that it involves acknowledgment and active resolution — though it can still carry physical costs if the underlying triggers are never addressed."),
-                        ArticleSection(heading: "The Frontal Lobes as Emotional CEO", body: "The brain's frontal lobes — particularly the prefrontal cortex — serve as the emotional CEO when anger arises. While the amygdala sounds the alarm at lightning speed, the frontal lobes are capable of taking in context, assessing proportionality, considering consequence, and choosing a response that is both honest and constructive. The capacity of the frontal lobes to regulate the amygdala's initial emotional impulse is what separates adaptive anger expression from destructive rage. Training this regulatory capacity through mindfulness, therapy, and reflective practice literally strengthens the neural pathways that keep the CEO in charge."),
-                        ArticleSection(heading: "Anger as Information", body: "When properly acknowledged and worked with, anger carries valuable information. It tells us where our values were violated, where our boundaries were crossed, and what needs to change in our environment or relationships. Many profound social and political movements were fuelled by collective anger at injustice — anger that was channelled consciously into sustained, purposeful action. The goal of anger management is not to eliminate anger but to ensure that the brain's frontal lobes remain in charge of what happens next — using the anger's energy constructively rather than letting it spill out in ways that cause harm.")
-                    ]
-                )
             ]
         }
     }
