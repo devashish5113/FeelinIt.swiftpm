@@ -1062,7 +1062,14 @@ struct NeuralSceneView: UIViewRepresentable {
         v.autoenablesDefaultLighting = false; v.backgroundColor = .clear
         v.antialiasingMode = .multisampling4X
         if manager.scene.rootNode.childNode(withName: "mainCam", recursively: false) == nil {
-            let cam = SCNCamera(); cam.fieldOfView = 65
+            let cam = SCNCamera()
+            cam.fieldOfView    = 65
+            // HDR + bloom — makes bright emission particles glow in their color
+            cam.wantsHDR       = true
+            cam.bloomThreshold = 0.6    // slightly higher threshold = less overspill
+            cam.bloomIntensity = 0.5    // subtle glow
+            cam.bloomBlurRadius = 14    // tighter spread
+            cam.wantsExposureAdaptation = false  // keep fixed exposure
             let cn  = SCNNode(); cn.name = "mainCam"; cn.camera = cam
             cn.position = SCNVector3(0, -0.4, 4.0)
             manager.scene.rootNode.addChildNode(cn)
