@@ -20,6 +20,13 @@ final class NeuralSceneManager: ObservableObject {
     private var skeletonPts:   [SCNVector3] = []
     private var currentParams  = EmotionParameters.make(for: .calm)
 
+    // Impulse trails
+    private var impulseRoot      = SCNNode()
+    private var synapseNode      = SCNNode()           // persistent bouton display
+    private var synapsePositions: [SCNVector3] = []    // cached for color rebuilds
+    private var synapsePaths: [[SCNVector3]] = []
+    private var impulseTask: Task<Void, Never>?
+
     private let groupCount = 8
 
     init() {
@@ -33,16 +40,19 @@ final class NeuralSceneManager: ObservableObject {
         amb.light?.type = .ambient; amb.light?.intensity = 40
         scene.rootNode.addChildNode(amb)
         scene.rootNode.addChildNode(sphereRoot)
+        sphereRoot.addChildNode(impulseRoot)   // rotates with neuron
     }
 
     // MARK: - Background Build
 
     nonisolated private func asyncBuild() async {
         let skeleton       = Self.neuronSkeleton()
-        let allCloud       = Self.neuronCloud(count: 3000)
+        let synPositions   = Self.buildSynapsePositions()            // bouton locations
+        let paths          = Self.buildShortImpulsePaths(from: synPositions)  // short hops
+        let allCloud       = Self.neuronCloud(count: 5000)
         let (lineV, lineI) = Self.connectionGeo(positions: skeleton, threshold: 0.38)
 
-        // Split cloud into groups
+        // Split cloud into 8 animated groups
         let groupSize  = allCloud.count / 8
         var groups     = [[SCNVector3]]()
         for g in 0..<8 {
@@ -53,9 +63,13 @@ final class NeuralSceneManager: ObservableObject {
 
         await MainActor.run { [weak self] in
             guard let self else { return }
-            self.skeletonPts = skeleton
+            self.skeletonPts  = skeleton
+            self.synapsePaths = paths
             self.buildGroups(groups)
-            self.placeLines(vertices: lineV, indices: lineI)
+            let calmColor = NeuralSceneManager.hardcodedImpulseColor(for: .calm)
+            self.placeLines(vertices: lineV, indices: lineI, color: calmColor)
+            self.synapsePositions = synPositions          // cache for later rebuilds
+            self.buildSynapseDisplay(positions: synPositions, color: calmColor)
             self.applyParameters(EmotionParameters.make(for: .calm), animated: false)
         }
     }
@@ -100,16 +114,21 @@ final class NeuralSceneManager: ObservableObject {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         base.getRed(&r, green: &g, blue: &b, alpha: &a)
         if intensity <= 1.0 {
-            // Scale brightness: intensity 0 = black, 1.0 = full base color
             let f = CGFloat(intensity)
             return UIColor(red: r * f, green: g * f, blue: b * f, alpha: a)
         } else {
-            // Overblown: lerp from base color toward pure white
-            // intensity 1.0 = base color, intensity 2.0+ = pure white
             let t = CGFloat(min((intensity - 1.0) / 1.0, 1.0))
             return UIColor(red: r + (1 - r) * t, green: g + (1 - g) * t,
                            blue: b + (1 - b) * t, alpha: a)
         }
+    }
+
+
+    /// Cloud-specific wrapper — scales glowColor intensity down to 28% so the
+    /// 5000 additive-blended cloud particles stay dim enough that the vivid
+    /// coloured impulse sparkles are clearly visible against them.
+    private func cloudGlowColor(from base: UIColor, intensity: Float) -> UIColor {
+        glowColor(from: base, intensity: intensity * 0.28)
     }
 
     private func applyParameters(_ p: EmotionParameters, animated: Bool) {
@@ -126,8 +145,8 @@ final class NeuralSceneManager: ObservableObject {
         for (i, group) in cloudGroups.enumerated() {
             group.removeAllActions()
 
-            // Base color keyed to glow intensity
-            let baseGlowColor = glowColor(from: p.primaryUIColor, intensity: p.glowIntensity)
+            // Base color keyed to glow intensity — dimmed so impulse colours dominate
+            let baseGlowColor = cloudGlowColor(from: p.primaryUIColor, intensity: p.glowIntensity)
             SCNTransaction.begin(); SCNTransaction.animationDuration = dur
             group.geometry?.firstMaterial?.emission.contents = baseGlowColor
             SCNTransaction.commit()
@@ -135,7 +154,7 @@ final class NeuralSceneManager: ObservableObject {
             applyEmotionActions(to: group, index: i, params: p, animated: animated)
         }
 
-        // Connections density
+        // Connections density — restored to 0.22–0.44 so soma ring keeps axon connections
         let threshold = Float(0.22 + p.connectivity * 0.22)
         let skel = skeletonPts
         if animated && !skel.isEmpty {
@@ -145,15 +164,32 @@ final class NeuralSceneManager: ObservableObject {
                 let (v, i) = NeuralSceneManager.connectionGeo(positions: skel, threshold: threshold)
                 await MainActor.run { [weak self] in
                     guard let self else { return }
-                    self.placeLines(vertices: v, indices: i)
+                    self.placeLines(vertices: v, indices: i,
+                                    color: NeuralSceneManager.hardcodedImpulseColor(
+                                        for: self.dominantEmotion(p)))
                     SCNTransaction.begin(); SCNTransaction.animationDuration = 0.8
                     self.connectionNode.opacity = 1; SCNTransaction.commit()
                 }
             }
         } else if !skel.isEmpty {
             let (v, i) = Self.connectionGeo(positions: skel, threshold: threshold)
-            placeLines(vertices: v, indices: i)
+            placeLines(vertices: v, indices: i,
+                       color: NeuralSceneManager.hardcodedImpulseColor(for: dominantEmotion(p)))
         }
+
+        // Rebuild synapse bouton display with correct emotion color.
+        // We rebuild the full SCNGeometry rather than patching the existing material
+        // because .alpha blendMode requires BOTH diffuse and emission to be updated
+        // simultaneously — partial updates leave the wrong color.
+        let emotion  = dominantEmotion(p)
+        let impColor = NeuralSceneManager.hardcodedImpulseColor(for: emotion)
+        if !synapsePositions.isEmpty {
+            buildSynapseDisplay(positions: synapsePositions, color: impColor)
+        }
+
+        // Synapse impulse trails
+        let cfg = impulseConfig(for: emotion)
+        startImpulseLoop(color: impColor, cfg: cfg)
     }
 
     // MARK: - Emotion-specific SCNAction per group
@@ -191,7 +227,7 @@ final class NeuralSceneManager: ObservableObject {
                 guard let self else { return }
                 let tf   = Float(t / speed)
                 let bright = glowLo + (glowHi - glowLo) * (0.5 + 0.5 * sin(tf * 2 * .pi + phase))
-                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: priC, intensity: bright)
+                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: priC, intensity: bright)
             })
             node.runAction(glowBreath, forKey: "glow")
 
@@ -236,7 +272,7 @@ final class NeuralSceneManager: ObservableObject {
                 let raw = 0.70 + 0.30 * sin(tf * spikeFreq + phase)
                             + 0.15 * sin(tf * spikeFreq * 2.7 + phase * 1.3)
                 let bright = max(0.4, min(1.4, raw))   // clamp; >1.0 → white-hot
-                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: priC2, intensity: Float(bright))
+                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: priC2, intensity: Float(bright))
             })
             node.runAction(glowSpike, forKey: "glow")
 
@@ -271,7 +307,7 @@ final class NeuralSceneManager: ObservableObject {
                 guard let self else { return }
                 let tf = Float(t / slowCycle)
                 let bright = dimLo + (dimHi - dimLo) * (0.5 + 0.5 * sin(tf * 2 * .pi + phase))
-                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: priC3, intensity: bright)
+                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: priC3, intensity: bright)
             })
             node.runAction(glowDim, forKey: "glow")
 
@@ -306,7 +342,7 @@ final class NeuralSceneManager: ObservableObject {
                 let blended = UIColor(red: pr + (sr - pr) * hueBlend,
                                      green: pg + (sg - pg) * hueBlend,
                                      blue: pb + (sb - pb) * hueBlend, alpha: 1)
-                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: blended, intensity: bright)
+                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: blended, intensity: bright)
             })
             let glowSeq = SCNAction.sequence([.wait(duration: delay), .repeatForever(unified)])
             node.runAction(glowSeq, forKey: "glow")
@@ -369,7 +405,7 @@ final class NeuralSceneManager: ObservableObject {
                 let blended = UIColor(red: pr + (sr - pr) * hueBlend,
                                      green: pg + (sg - pg) * hueBlend,
                                      blue: pb + (sb - pb) * hueBlend, alpha: 1)
-                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: blended, intensity: bright)
+                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: blended, intensity: bright)
             })
             node.runAction(.sequence([.wait(duration: happyDelay), .repeatForever(happyGlow)]), forKey: "glow")
 
@@ -428,7 +464,7 @@ final class NeuralSceneManager: ObservableObject {
                 let blended = UIColor(red: pr + (sr - pr) * hueBlend * 0.4,
                                      green: pg + (sg - pg) * hueBlend * 0.4,
                                      blue: pb + (sb - pb) * hueBlend * 0.2, alpha: 1)
-                nd.geometry?.firstMaterial?.emission.contents = self.glowColor(from: blended, intensity: bright)
+                nd.geometry?.firstMaterial?.emission.contents = self.cloudGlowColor(from: blended, intensity: bright)
             })
             node.runAction(angryGlow, forKey: "glow")
         }
@@ -444,9 +480,320 @@ final class NeuralSceneManager: ObservableObject {
         }) ?? .calm
     }
 
+    /// Hardcoded vivid UIColor for impulse particles — six distinct colours that
+    /// are guaranteed to render correctly regardless of brightness or blend math.
+    static func hardcodedImpulseColor(for emotion: Emotion) -> UIColor {
+        switch emotion {
+        case .calm:    return UIColor(red: 0.20, green: 0.55, blue: 0.95, alpha: 1) // app blue
+        case .anxiety: return UIColor(red: 0.95, green: 0.28, blue: 0.08, alpha: 1) // app orange
+        case .sadness: return UIColor(red: 0.38, green: 0.40, blue: 0.58, alpha: 1) // app muted blue
+        case .love:    return UIColor(red: 0.95, green: 0.38, blue: 0.65, alpha: 1) // app pink
+        case .happy:   return UIColor(red: 0.98, green: 0.78, blue: 0.10, alpha: 1) // app amber-gold
+        case .angry:   return UIColor(red: 0.88, green: 0.10, blue: 0.18, alpha: 1) // app crimson
+        }
+    }
+
+    // MARK: - Impulse Config
+
+    private struct ImpulseConfig {
+        let segmentDuration: Double   // seconds to traverse one path segment
+        let launchInterval:  Double   // seconds between successive impulse launches
+        let trailCount:      Int      // trailing clusters per launch (creates comet effect)
+        let trailDelay:      Double   // seconds between each trail cluster
+        let particleCount:   Int      // points per cluster node
+        let brightness:      Float    // emission intensity (>1 = white-hot overblown)
+    }
+
+    private func impulseConfig(for emotion: Emotion) -> ImpulseConfig {
+        switch emotion {
+        case .calm:
+            // Slow deliberate signals, 2-glow trail, medium density
+            return ImpulseConfig(segmentDuration: 0.28, launchInterval: 0.09,
+                                 trailCount: 2, trailDelay: 0.14,
+                                 particleCount: 20, brightness: 0.85)
+        case .anxiety:
+            // Frantic rapid-fire bursts everywhere at once
+            return ImpulseConfig(segmentDuration: 0.06, launchInterval: 0.03,
+                                 trailCount: 5, trailDelay: 0.04,
+                                 particleCount: 28, brightness: 1.55)
+        case .sadness:
+            // Sparse, slow, barely-there signals
+            return ImpulseConfig(segmentDuration: 0.60, launchInterval: 0.55,
+                                 trailCount: 1, trailDelay: 0.35,
+                                 particleCount: 12, brightness: 0.30)
+        case .love:
+            // Warm cascading rhythm
+            return ImpulseConfig(segmentDuration: 0.22, launchInterval: 0.06,
+                                 trailCount: 3, trailDelay: 0.10,
+                                 particleCount: 24, brightness: 1.20)
+        case .happy:
+            // Bright energetic bursts all over
+            return ImpulseConfig(segmentDuration: 0.14, launchInterval: 0.05,
+                                 trailCount: 3, trailDelay: 0.08,
+                                 particleCount: 24, brightness: 1.25)
+        case .angry:
+            // Explosive strike-and-rebound — heavy, overblown
+            return ImpulseConfig(segmentDuration: 0.09, launchInterval: 0.03,
+                                 trailCount: 5, trailDelay: 0.05,
+                                 particleCount: 30, brightness: 1.50)
+        }
+    }
+
+    // MARK: - Synapse Position Builder (nonisolated)
+
+    /// Returns all synaptic bouton positions spread across the neuron structure.
+    nonisolated static func buildSynapsePositions() -> [SCNVector3] {
+        var pts = [SCNVector3]()
+        pts.append(SCNVector3(0, 0, 0))   // soma
+
+        for d in 0..<6 {
+            let ba  = Float(d) * 2 * Float.pi / 6
+            let zv  = sin(Float(d) * 1.4) * 0.3
+            let dir = norm(SCNVector3(cos(ba), sin(ba), zv))
+            var tip = SCNVector3(dir.x*0.18, dir.y*0.18, dir.z*0.18)
+            for _ in 0..<4 {
+                tip = SCNVector3(tip.x+dir.x*0.21, tip.y+dir.y*0.21, tip.z+dir.z*0.21)
+                pts.append(tip)
+            }
+            for s: Float in [-1, 1] {
+                let pa = ba + s * .pi / 3.5
+                let sd = norm(SCNVector3(cos(pa), sin(pa), zv*0.5))
+                var st = tip
+                for _ in 0..<3 {
+                    st = SCNVector3(st.x+sd.x*0.17, st.y+sd.y*0.17, st.z+sd.z*0.17)
+                    pts.append(st)
+                }
+            }
+        }
+        var at = SCNVector3(0, -0.20, 0)
+        let ad = norm(SCNVector3(0.04, -1, 0.03))
+        for _ in 0..<8 {
+            at = SCNVector3(at.x+ad.x*0.27, at.y+ad.y*0.27, at.z+ad.z*0.27)
+            pts.append(at)
+        }
+        for t in 0..<5 {
+            let ta = Float(t) * 2 * Float.pi / 5
+            let td = norm(SCNVector3(cos(ta)*0.6, -0.6, sin(ta)*0.6))
+            var tt = at
+            for _ in 0..<2 {
+                tt = SCNVector3(tt.x+td.x*0.14, tt.y+td.y*0.14, tt.z+td.z*0.14)
+                pts.append(tt)
+            }
+        }
+        return pts   // ~79 bouton positions spread across full neuron
+    }
+
+    /// Generates short 2-hop paths between adjacent boutons (dist < threshold).
+    /// This creates ~200 short synapse-to-synapse paths for dense local signalling.
+    nonisolated static func buildShortImpulsePaths(from positions: [SCNVector3]) -> [[SCNVector3]] {
+        var paths = [[SCNVector3]]()
+        let threshold: Float = 0.45   // connect any two boutons within this range
+
+        for i in 0..<positions.count {
+            for j in (i+1)..<positions.count {
+                let dx = positions[i].x - positions[j].x
+                let dy = positions[i].y - positions[j].y
+                let dz = positions[i].z - positions[j].z
+                if sqrt(dx*dx + dy*dy + dz*dz) < threshold {
+                    // Add slight random midpoint arc to each path
+                    let mid = SCNVector3(
+                        (positions[i].x + positions[j].x) * 0.5 + Float.random(in: -0.015...0.015),
+                        (positions[i].y + positions[j].y) * 0.5 + Float.random(in: -0.015...0.015),
+                        (positions[i].z + positions[j].z) * 0.5 + Float.random(in: -0.015...0.015)
+                    )
+                    // Both directions — bidirectional traffic like real synapses
+                    paths.append([positions[i], mid, positions[j]])
+                    paths.append([positions[j], mid, positions[i]])
+                }
+            }
+        }
+        return paths
+    }
+
+    // MARK: - Synapse Bouton Display
+
+    /// Creates a persistent point-cloud node showing all bouton positions as
+    /// larger, brighter points — giving visible synapse "buttons" on the structure.
+    private func buildSynapseDisplay(positions: [SCNVector3], color: UIColor) {
+        synapseNode.removeFromParentNode()
+        guard !positions.isEmpty else { return }
+        let src  = SCNGeometrySource(vertices: positions)
+        let idxs = Array(Int32(0)..<Int32(positions.count))
+        let elem = SCNGeometryElement(indices: idxs, primitiveType: .point)
+        elem.pointSize                     = 10.0
+        elem.minimumPointScreenSpaceRadius = 3.0
+        elem.maximumPointScreenSpaceRadius = 18.0
+        let geo = SCNGeometry(sources: [src], elements: [elem])
+        let mat = SCNMaterial()
+        mat.lightingModel       = .constant
+        mat.diffuse.contents    = color          // primary render color
+        mat.emission.contents   = color          // self-illuminated
+        mat.blendMode           = .alpha         // NOT .add — prevents white washout
+        mat.writesToDepthBuffer = false
+        geo.materials = [mat]
+        synapseNode = SCNNode(geometry: geo)
+        impulseRoot.addChildNode(synapseNode)
+    }
+
+    // MARK: - Impulse Node Factory
+
+    /// Tight point-cloud cluster that travels as one luminous blob along a path.
+    /// Uses .alpha blend (not .add) so the hardcoded emotion color renders at
+    /// its exact RGB value without being washed to white by nearby cloud particles.
+    private func makeImpulseCloudNode(positions: [SCNVector3], color: UIColor) -> SCNNode {
+        let src  = SCNGeometrySource(vertices: positions)
+        let idxs = Array(Int32(0)..<Int32(positions.count))
+        let elem = SCNGeometryElement(indices: idxs, primitiveType: .point)
+        elem.pointSize                   = 2.5
+        elem.minimumPointScreenSpaceRadius = 0.8
+        elem.maximumPointScreenSpaceRadius = 5.5
+        let geo = SCNGeometry(sources: [src], elements: [elem])
+        let mat = SCNMaterial()
+        mat.lightingModel       = .constant
+        mat.diffuse.contents    = color          // primary color channel
+        mat.emission.contents   = color          // self-illuminated glow
+        mat.blendMode           = .alpha         // NOT .add — prevents white washout
+        mat.writesToDepthBuffer = false
+        geo.materials = [mat]
+        return SCNNode(geometry: geo)
+    }
+
+    /// Creates a star/diamond shaped impulse node using the given color DIRECTLY.
+    /// No brightness scaling, no color math — the color you pass is exactly
+    /// what gets rendered.
+    private func makeImpulseNode(color: UIColor, count: Int) -> SCNNode {
+        var pts = [SCNVector3]()
+        let stepsPerArm = max(3, count / 14)
+        let armLen: Float = 0.024
+
+        for step in 0..<stepsPerArm {
+            let t = Float(step + 1) / Float(stepsPerArm)
+            let r = t * armLen
+            pts += [
+                SCNVector3( r,  0,  0), SCNVector3(-r,  0,  0),
+                SCNVector3( 0,  r,  0), SCNVector3( 0, -r,  0),
+                SCNVector3( 0,  0,  r), SCNVector3( 0,  0, -r),
+            ]
+            let d = r * 0.65
+            pts += [
+                SCNVector3( d,  d,  0), SCNVector3(-d,  d,  0),
+                SCNVector3( d, -d,  0), SCNVector3(-d, -d,  0),
+                SCNVector3( d,  0,  d), SCNVector3(-d,  0,  d),
+                SCNVector3( d,  0, -d), SCNVector3(-d,  0, -d),
+            ]
+        }
+        pts.append(SCNVector3(0, 0, 0))
+        let node = makeImpulseCloudNode(positions: pts, color: color)
+
+        // Attach a tiny omni light in the emotion color for a soft glow radius
+        let light = SCNLight()
+        light.type = .omni
+        light.color = color
+        light.intensity = 120          // subtle, not blinding
+        light.attenuationStartDistance = 0.0
+        light.attenuationEndDistance   = 0.25   // gentle falloff radius
+        let lightNode = SCNNode()
+        lightNode.light = light
+        node.addChildNode(lightNode)
+
+        return node
+    }
+
+    // MARK: - Launch a single impulse along one path
+
+    /// Launches one impulse sparkle along a path. Color is used as-is.
+    private func launchImpulse(path: [SCNVector3], color: UIColor, cfg: ImpulseConfig) {
+        guard path.count >= 2 else { return }
+        let node = makeImpulseNode(color: color, count: cfg.particleCount)
+        node.position = path[0]
+        impulseRoot.addChildNode(node)
+
+        var actions = [SCNAction]()
+        for i in 1..<path.count {
+            let step = SCNAction.move(to: path[i], duration: cfg.segmentDuration)
+            step.timingMode = .easeInEaseOut
+            actions.append(step)
+        }
+        actions.append(.removeFromParentNode())
+        node.runAction(.sequence(actions))
+    }
+
+    // MARK: - Continuous impulse loop
+
+    private func startImpulseLoop(color: UIColor, cfg: ImpulseConfig) {
+        impulseTask?.cancel()
+        impulseRoot.enumerateChildNodes { [weak self] node, _ in
+            guard node !== self?.synapseNode else { return }
+            node.removeFromParentNode()
+        }
+
+        let paths = synapsePaths
+        guard !paths.isEmpty else { return }
+
+        // Immediate burst so the neuron is alive from the first frame
+        let burst = min(30, paths.count)
+        let shuffled = paths.shuffled()
+        for i in 0..<burst {
+            launchImpulse(path: shuffled[i], color: color, cfg: cfg)
+        }
+
+        impulseTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                guard let path = paths.randomElement() else { continue }
+
+                // All impulses use the same vivid emotion color
+                self.launchImpulse(path: path, color: color, cfg: cfg)
+
+                // Trailing impulses — same color, staggered timing
+                for t in 1..<cfg.trailCount {
+                    let delay = Double(t) * cfg.trailDelay
+                    Task { @MainActor [weak self] in
+                        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                        guard !Task.isCancelled else { return }
+                        self?.launchImpulse(path: path, color: color, cfg: cfg)
+                    }
+                }
+
+                try? await Task.sleep(
+                    nanoseconds: UInt64(cfg.launchInterval * 1_000_000_000))
+            }
+        }
+    }
+
+    // MARK: - Camera Reset
+
+    /// Stored during makeUIView so resetCamera() can act on the live view.
+    private(set) weak var attachedView: SCNView?
+
+    func attach(view: SCNView) { attachedView = view }
+
+    func resetCamera() {
+        guard let v   = attachedView,
+              let cam = v.scene?.rootNode.childNode(withName: "mainCam",
+                                                    recursively: false)
+        else { return }
+
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = 0.9
+        SCNTransaction.animationTimingFunction =
+            CAMediaTimingFunction(name: .easeInEaseOut)
+        cam.position    = SCNVector3(0, -0.4, 4.0)
+        cam.eulerAngles = SCNVector3(0, 0, 0)
+        SCNTransaction.commit()
+
+        // Restart rotation so sphereRoot snaps back gracefully
+        sphereRoot.removeAction(forKey: "rot")
+        sphereRoot.runAction(.repeatForever(
+            .rotateBy(x: 0.06, y: CGFloat(2 * Double.pi), z: 0.03,
+                      duration: currentParams.rotationDuration)
+        ), forKey: "rot")
+    }
+
     // MARK: - Scene Graph
 
-    private func placeLines(vertices: [SCNVector3], indices: [Int32]) {
+    private func placeLines(vertices: [SCNVector3], indices: [Int32],
+                            color: UIColor = .white) {
         connectionNode.removeFromParentNode()
         guard !vertices.isEmpty else { return }
         let src  = SCNGeometrySource(vertices: vertices)
@@ -454,7 +801,7 @@ final class NeuralSceneManager: ObservableObject {
         let geo  = SCNGeometry(sources: [src], elements: [elem])
         let mat  = SCNMaterial()
         mat.lightingModel     = .constant
-        mat.emission.contents = currentParams.primaryUIColor.withAlphaComponent(0.2)
+        mat.emission.contents = color.withAlphaComponent(0.35)
         mat.blendMode         = .add
         mat.writesToDepthBuffer = false
         geo.materials = [mat]
@@ -584,6 +931,7 @@ struct NeuralSceneView: UIViewRepresentable {
             cn.position = SCNVector3(0, -0.4, 4.0)
             manager.scene.rootNode.addChildNode(cn)
         }
+        manager.attach(view: v)   // enables one-tap camera reset
         return v
     }
     @MainActor func updateUIView(_ uiView: SCNView, context: Context) {}

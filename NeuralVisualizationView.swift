@@ -38,6 +38,15 @@ struct NeuralVisualizationView: View {
 
                     Spacer()
 
+                    // Reset camera orientation
+                    Button { sceneManager.resetCamera() } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.8))
+                            .frame(width: 36, height: 36)
+                            .background(.white.opacity(0.12), in: Circle())
+                    }
+
                     // Emotion badge
                     HStack(spacing: 6) {
                         Text(emotion.emoji)
