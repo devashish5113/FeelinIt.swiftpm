@@ -35,7 +35,8 @@ let package = Package(
             capabilities: [
                 .camera(purposeString: "FeelinIt uses your front camera to detect hand gestures for emotion regulation."),
                 .microphone(purposeString: "FeelinIt uses your microphone to detect breathing patterns for emotion regulation.")
-            ]
+            ],
+            appCategory: .healthcareFitness
         )
     ],
     targets: [
@@ -44,5 +45,5 @@ let package = Package(
             path: "."
         )
     ],
-    swiftLanguageModes: [.v6]
+    swiftLanguageVersions: [.version("6")]
 )

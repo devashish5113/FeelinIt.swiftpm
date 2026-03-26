@@ -195,16 +195,14 @@ final class EmotionViewModel: ObservableObject {
         let elapsed = stabilizationStartTime.map { Date().timeIntervalSince($0) } ?? 0
         let quality = breathingManager.isCalmBreathing ? "Calm" : "Elevated"
         if let emotion = selectedEmotion {
-            if !sessions.contains(where: { $0.emotion == emotion }) {
-                sessions.append(EmotionSession(
-                    emotion: emotion,
-                    date: Date(),
-                    stabilizationTime: elapsed,
-                    breathingQuality: quality,
-                    isLogged: userWantsToLog
-                ))
-                saveSessions()
-            }
+            sessions.append(EmotionSession(
+                emotion: emotion,
+                date: Date(),
+                stabilizationTime: elapsed,
+                breathingQuality: quality,
+                isLogged: userWantsToLog
+            ))
+            saveSessions()
         }
         isRegulating = true
         guidedPhase  = .restored

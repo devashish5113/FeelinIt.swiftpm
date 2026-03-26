@@ -98,8 +98,12 @@ struct JourneyView: View {
                         }
                     }
 
-                    // Orbs
-                    ForEach(viewModel.sessions) { session in
+                    // Orbs (one per unique emotion — use first session for each)
+                    let uniqueSessions: [EmotionSession] = {
+                        var seen = Set<Emotion>()
+                        return viewModel.sessions.filter { seen.insert($0.emotion).inserted }
+                    }()
+                    ForEach(uniqueSessions) { session in
                         let slot   = emotionOrder.firstIndex(of: session.emotion) ?? 0
                         let target = screenPos(slot: slot, geo: geo)
                         let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
@@ -135,7 +139,7 @@ struct JourneyView: View {
                     Text("Journey")
                         .font(.system(size: 38, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
-                    Text("\(viewModel.sessions.count) of 6 emotions explored")
+                    Text("\(Set(viewModel.sessions.map(\.emotion)).count) of 6 emotions explored")
                         .font(.system(size: 13))
                         .foregroundStyle(.white.opacity(0.45))
                 }

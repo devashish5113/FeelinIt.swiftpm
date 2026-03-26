@@ -50,6 +50,7 @@ struct EmotionSelectionView: View {
     @ObservedObject var viewModel: EmotionViewModel
     @State private var appeared = false
     @State private var selectedForAnim: Emotion? = nil
+    @State private var showInfo = false
 
 
     private let ringEmotions: [(emotion: Emotion, idx: Int)] = [
@@ -70,8 +71,26 @@ struct EmotionSelectionView: View {
             GeometryReader { geo in
                 contentLayout(geo: geo)
             }
+
+            // Info button — top right
+            VStack {
+                HStack {
+                    Spacer()
+                    Button { showInfo = true } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 20, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.45))
+                            .padding(16)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.top, 44)
         }
         .onAppear { appeared = true }
+        .sheet(isPresented: $showInfo) {
+            InfoSheet()
+        }
     }
 
 
@@ -319,6 +338,48 @@ struct FloatingOrbs: View {
         .onAppear {
             withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) {
                 animate = true
+            }
+        }
+    }
+}
+
+// MARK: - Info Sheet
+
+struct InfoSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            List {
+                Section {
+                    Link(destination: URL(string: "https://feelinit-web.vercel.app/privacy-policy")!) {
+                        Label("Privacy Policy", systemImage: "lock.shield")
+                    }
+                    Link(destination: URL(string: "https://feelinit-web.vercel.app/terms-of-use")!) {
+                        Label("Terms of Use", systemImage: "doc.text")
+                    }
+                }
+
+                Section {
+                    HStack {
+                        Text("Version")
+                        Spacer()
+                        Text("1.0")
+                            .foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    Text("FeelinIt is a wellness tool, not a medical device. It does not diagnose, treat, or prevent any condition.")
+                        .font(.caption)
+                        .padding(.top, 8)
+                }
+            }
+            .navigationTitle("About")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .fontWeight(.semibold)
+                }
             }
         }
     }

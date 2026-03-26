@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = EmotionViewModel()
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+    @State private var showOnboarding = false
 
     var body: some View {
         ZStack {
@@ -40,5 +42,15 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.45), value: viewModel.selectedEmotion == nil)
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView(isPresented: $showOnboarding)
+        }
+        .onAppear {
+            if !hasSeenOnboarding {
+                showOnboarding = true
+                hasSeenOnboarding = true
+            }
+        }
     }
 }
+
