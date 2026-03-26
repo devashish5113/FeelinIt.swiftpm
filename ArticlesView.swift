@@ -32,6 +32,7 @@ struct ArticlesView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
         }
+        .navigationViewStyle(.stack)
         .sheet(item: $selectedArticle) { article in
             ArticleDetailSheet(
                 article: article,
