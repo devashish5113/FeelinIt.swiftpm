@@ -124,6 +124,19 @@ final class EmotionViewModel: ObservableObject {
     func answerLogPrompt(wantsToLog: Bool) {
         guard guidedPhase == .logPrompt else { return }
         userWantsToLog = wantsToLog
+
+        // Record session immediately on log confirmation
+        if wantsToLog, let emotion = selectedEmotion {
+            sessions.append(EmotionSession(
+                emotion: emotion,
+                date: Date(),
+                stabilizationTime: 0,
+                breathingQuality: "Not measured",
+                isLogged: true
+            ))
+            saveSessions()
+        }
+
         withAnimation(.easeInOut(duration: 0.45)) {
             guidedPhase = .restoreButton
         }
@@ -191,17 +204,18 @@ final class EmotionViewModel: ObservableObject {
     }
 
     private func triggerBalanceRestored() {
-        // Record session data
+        // Update the most recent session with stabilization data if available
         let elapsed = stabilizationStartTime.map { Date().timeIntervalSince($0) } ?? 0
         let quality = breathingManager.isCalmBreathing ? "Calm" : "Elevated"
-        if let emotion = selectedEmotion {
-            sessions.append(EmotionSession(
+        if let emotion = selectedEmotion,
+           let idx = sessions.lastIndex(where: { $0.emotion == emotion && $0.breathingQuality == "Not measured" }) {
+            sessions[idx] = EmotionSession(
                 emotion: emotion,
-                date: Date(),
+                date: sessions[idx].date,
                 stabilizationTime: elapsed,
                 breathingQuality: quality,
-                isLogged: userWantsToLog
-            ))
+                isLogged: sessions[idx].isLogged
+            )
             saveSessions()
         }
         isRegulating = true
