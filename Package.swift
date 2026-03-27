@@ -16,7 +16,7 @@ let package = Package(
         .iOSApplication(
             name: "FeelinIt",
             targets: ["AppModule"],
-            bundleIdentifier: "com.lms.FeelinIt",
+            bundleIdentifier: "com.ios.FeelinIt",
             teamIdentifier: "HN837W3RNR",
             displayVersion: "1.0",
             bundleVersion: "1",
